@@ -118,8 +118,15 @@ const getYDoc = async (docId) => {
   });
 };
 
-// WebSocket server
-const wss = new WebSocketServer({ server, path: '/ws' });
+// WebSocket server - accept any path for y-websocket compatibility
+const wss = new WebSocketServer({ noServer: true });
+
+// Handle HTTP upgrade for WebSocket
+server.on('upgrade', (request, socket, head) => {
+  wss.handleUpgrade(request, socket, head, (ws) => {
+    wss.emit('connection', ws, request);
+  });
+});
 
 // Track connections per document
 const connections = new Map();
@@ -130,9 +137,16 @@ const getConnections = (docId) => {
 };
 
 wss.on('connection', async (ws, req) => {
-  // Parse document ID from URL
+  // Parse document ID from URL path or query param
+  // y-websocket sends: /roomName or /ws?docId=roomName
   const url = new URL(req.url, `http://${req.headers.host}`);
-  const docId = url.searchParams.get('docId') || 'default';
+  let docId = url.searchParams.get('docId');
+  
+  // If no query param, extract from path (y-websocket format: /docId)
+  if (!docId) {
+    const pathParts = url.pathname.split('/').filter(Boolean);
+    docId = pathParts[0] || 'default';
+  }
   
   console.log(`[${docId}] Client connected`);
   
