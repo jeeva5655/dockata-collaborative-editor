@@ -564,10 +564,10 @@ export default function Editor({ user, setUser }) {
       <div className="bg-gray-50 border-b border-gray-200 px-4 py-1">
         <div id="toolbar" className="flex items-center gap-2 flex-wrap">
           {/* Undo/Redo */}
-          <button className="ql-undo p-1.5 hover:bg-gray-200 rounded" onClick={() => quillRef.current?.history.undo()}>
+          <button className="toolbar-btn-undo p-1.5 hover:bg-gray-200 rounded" onClick={() => quillRef.current?.history.undo()} title="Undo (Ctrl+Z)">
             <Undo className="w-4 h-4" />
           </button>
-          <button className="ql-redo p-1.5 hover:bg-gray-200 rounded" onClick={() => quillRef.current?.history.redo()}>
+          <button className="toolbar-btn-redo p-1.5 hover:bg-gray-200 rounded" onClick={() => quillRef.current?.history.redo()} title="Redo (Ctrl+Y)">
             <Redo className="w-4 h-4" />
           </button>
           
