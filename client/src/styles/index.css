@@ -230,6 +230,38 @@ body {
   font-style: normal;
 }
 
+/* Image resize module styles */
+.editor-page .ql-editor img {
+  cursor: pointer;
+  max-width: 100%;
+}
+
+.editor-page .ql-editor img:hover {
+  outline: 2px solid #1a73e8;
+}
+
+/* Image resize handles */
+.image-resizer {
+  border: 1px dashed #1a73e8;
+  position: absolute;
+}
+
+.image-resizer .resize-handle {
+  width: 12px;
+  height: 12px;
+  background: #1a73e8;
+  border: 2px solid white;
+  border-radius: 50%;
+  position: absolute;
+  cursor: nwse-resize;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.image-resizer .resize-handle.tl { top: -6px; left: -6px; }
+.image-resizer .resize-handle.tr { top: -6px; right: -6px; }
+.image-resizer .resize-handle.bl { bottom: -6px; left: -6px; }
+.image-resizer .resize-handle.br { bottom: -6px; right: -6px; }
+
 /* Cursor styles for collaboration */
 .editor-page .ql-cursor {
   position: absolute;
