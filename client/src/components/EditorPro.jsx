@@ -8,7 +8,6 @@ import {
 } from 'lucide-react'
 import Quill from 'quill'
 import QuillCursors from 'quill-cursors'
-import ImageResize from 'quill-image-resize-module'
 import * as Y from 'yjs'
 import { QuillBinding } from 'y-quill'
 import { WebsocketProvider } from 'y-websocket'
@@ -17,7 +16,6 @@ import { API_URL, getWsUrl } from '../config/api'
 
 // Register Quill modules
 Quill.register('modules/cursors', QuillCursors)
-Quill.register('modules/imageResize', ImageResize)
 
 // Font families for Quill
 const Font = Quill.import('formats/font')
@@ -137,11 +135,7 @@ export default function Editor({ user, setUser }) {
         toolbar: {
           container: '#toolbar'
         },
-        history: { userOnly: true },
-        imageResize: {
-          displaySize: true,
-          modules: ['Resize', 'DisplaySize']
-        }
+        history: { userOnly: true }
       },
       placeholder: 'Start typing... Your changes sync in real-time!'
     })
