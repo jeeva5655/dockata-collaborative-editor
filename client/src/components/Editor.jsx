@@ -102,15 +102,14 @@ export default function Editor({ user, setUser }) {
     // Connect to WebSocket
     const wsUrl = getWsUrl(docId)
     const provider = new WebsocketProvider(wsUrl, docId, ydoc, {
-      connect: true,
-      awareness: null // We'll handle awareness separately
+      connect: true
     })
     providerRef.current = provider
 
     // Get the shared text type
     const ytext = ydoc.getText('quill')
 
-    // Bind Quill to Yjs
+    // Bind Quill to Yjs (awareness is auto-created by WebsocketProvider)
     const binding = new QuillBinding(ytext, quill, provider.awareness)
 
     // Set up awareness (user presence)
