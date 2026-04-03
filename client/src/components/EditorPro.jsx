@@ -436,7 +436,7 @@ export default function Editor({ user, setUser }) {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-100">
+    <div className="editor-page min-h-screen flex flex-col bg-gray-100">
       {/* Top Header - Title Bar */}
       <header className="bg-white border-b border-gray-200 px-4 py-2">
         <div className="flex items-center justify-between">
@@ -454,14 +454,14 @@ export default function Editor({ user, setUser }) {
                     onChange={e => setNewTitle(e.target.value)}
                     onKeyDown={e => e.key === 'Enter' && updateTitle()}
                     onBlur={updateTitle}
-                    className="text-lg font-medium px-2 py-1 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="text-lg font-medium px-2 py-1 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
                     autoFocus
                   />
                 </div>
               ) : (
                 <button
                   onClick={() => { setNewTitle(title); setEditingTitle(true) }}
-                  className="text-lg font-medium hover:bg-gray-100 px-2 py-1 rounded"
+                  className="text-lg font-medium hover:bg-gray-100 px-2 py-1 rounded text-gray-900"
                 >
                   {title}
                 </button>
@@ -471,7 +471,7 @@ export default function Editor({ user, setUser }) {
                   <span className={`w-2 h-2 rounded-full ${connected ? 'bg-green-500' : 'bg-orange-500'}`}></span>
                   {connected ? 'All changes saved' : 'Connecting...'}
                 </span>
-                {lastSaved && <span>• Last saved {formatDistanceToNow(lastSaved, { addSuffix: true })}</span>}
+                {lastSaved && <span className="text-gray-500">• Last saved {formatDistanceToNow(lastSaved, { addSuffix: true })}</span>}
               </div>
             </div>
           </div>
@@ -529,7 +529,7 @@ export default function Editor({ user, setUser }) {
             <div key={menuName} className="relative">
               <button
                 onClick={(e) => { e.stopPropagation(); setActiveMenu(activeMenu === menuName ? null : menuName) }}
-                className={`px-3 py-1 text-sm rounded hover:bg-gray-100 capitalize ${activeMenu === menuName ? 'bg-gray-100' : ''}`}
+                className={`px-3 py-1 text-sm rounded hover:bg-gray-100 capitalize text-gray-700 ${activeMenu === menuName ? 'bg-gray-100' : ''}`}
               >
                 {menuName}
               </button>
@@ -543,9 +543,9 @@ export default function Editor({ user, setUser }) {
                       <button
                         key={i}
                         onClick={() => { item.action(); setActiveMenu(null) }}
-                        className="w-full flex items-center justify-between px-4 py-2 text-sm hover:bg-gray-100 text-left"
+                        className="w-full flex items-center justify-between px-4 py-2 text-sm hover:bg-gray-100 text-left text-gray-700"
                       >
-                        <span className="flex items-center gap-3">
+                        <span className="flex items-center gap-3 text-gray-700">
                           {item.icon && <item.icon className="w-4 h-4 text-gray-500" />}
                           {item.label}
                         </span>

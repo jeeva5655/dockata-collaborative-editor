@@ -99,19 +99,164 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--bg-secondary);
+  background: #f1f1f1;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--bg-tertiary);
+  background: #c1c1c1;
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--accent-primary);
+  background: #a0a0a0;
 }
 
-/* Quill editor customization */
+/* ============================================
+   GOOGLE DOCS STYLE EDITOR
+   ============================================ */
+
+/* Editor Page - Light Theme Override */
+.editor-page {
+  background: #f8f9fa !important;
+  color: #202124 !important;
+}
+
+.editor-page * {
+  color: inherit;
+}
+
+/* Google Docs style toolbar */
+.editor-page .ql-toolbar.ql-snow {
+  background: #f1f3f4;
+  border: none;
+  border-radius: 0;
+  padding: 4px 8px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+}
+
+.editor-page .ql-toolbar .ql-formats {
+  margin-right: 8px;
+  display: flex;
+  align-items: center;
+}
+
+.editor-page .ql-snow .ql-stroke {
+  stroke: #5f6368;
+}
+
+.editor-page .ql-snow .ql-fill {
+  fill: #5f6368;
+}
+
+.editor-page .ql-snow .ql-picker {
+  color: #5f6368;
+}
+
+.editor-page .ql-snow .ql-picker-label {
+  border: 1px solid transparent;
+  border-radius: 4px;
+  padding: 2px 8px;
+}
+
+.editor-page .ql-snow .ql-picker-label:hover {
+  background: #e8eaed;
+}
+
+.editor-page .ql-snow .ql-picker-options {
+  background: white;
+  border: 1px solid #dadce0;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+  padding: 8px 0;
+}
+
+.editor-page .ql-snow .ql-picker-item {
+  padding: 8px 16px;
+  color: #202124;
+}
+
+.editor-page .ql-snow .ql-picker-item:hover {
+  background: #f1f3f4;
+}
+
+.editor-page .ql-snow.ql-toolbar button {
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.editor-page .ql-snow.ql-toolbar button:hover {
+  background: #e8eaed;
+}
+
+.editor-page .ql-snow.ql-toolbar button.ql-active {
+  background: #d3e3fd;
+}
+
+.editor-page .ql-snow.ql-toolbar button:hover .ql-stroke,
+.editor-page .ql-snow.ql-toolbar button.ql-active .ql-stroke {
+  stroke: #1a73e8;
+}
+
+.editor-page .ql-snow.ql-toolbar button:hover .ql-fill,
+.editor-page .ql-snow.ql-toolbar button.ql-active .ql-fill {
+  fill: #1a73e8;
+}
+
+/* Editor container - Google Docs style paper */
+.editor-page .ql-container.ql-snow {
+  background: white;
+  border: none;
+  font-family: 'Arial', sans-serif;
+  font-size: 11pt;
+}
+
+.editor-page .ql-editor {
+  min-height: 1000px;
+  padding: 72px 72px;
+  line-height: 1.5;
+  color: #202124;
+  max-width: 100%;
+}
+
+.editor-page .ql-editor.ql-blank::before {
+  color: #9aa0a6;
+  font-style: normal;
+}
+
+/* Cursor styles for collaboration */
+.editor-page .ql-cursor {
+  position: absolute;
+  pointer-events: none;
+}
+
+.editor-page .ql-cursor-caret {
+  width: 2px;
+  animation: cursorBlink 1s ease-in-out infinite;
+}
+
+@keyframes cursorBlink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.editor-page .ql-cursor-name {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+  transform: translateY(-100%);
+  color: white;
+}
+
+/* Quill editor customization for Home page (Dark theme) */
 .ql-container {
   font-family: 'Inter', sans-serif;
   font-size: 16px;
@@ -204,11 +349,6 @@ body {
 .ql-cursor-caret {
   width: 2px;
   animation: cursorBlink 1s ease-in-out infinite;
-}
-
-@keyframes cursorBlink {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
 }
 
 .ql-cursor-name {
