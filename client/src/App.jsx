@@ -1,7 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import Home from './components/Home'
-import Editor from './components/Editor'
+import EditorPro from './components/EditorPro'
 import Particles from './components/Particles'
 
 function App() {
@@ -28,12 +28,15 @@ function App() {
   return (
     <BrowserRouter>
       <div className="min-h-screen">
-        <div className="animated-bg" />
-        <Particles />
-        
         <Routes>
-          <Route path="/" element={<Home user={user} setUser={setUser} />} />
-          <Route path="/doc/:docId" element={<Editor user={user} setUser={setUser} />} />
+          <Route path="/" element={
+            <>
+              <div className="animated-bg" />
+              <Particles />
+              <Home user={user} setUser={setUser} />
+            </>
+          } />
+          <Route path="/doc/:docId" element={<EditorPro user={user} setUser={setUser} />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </div>
