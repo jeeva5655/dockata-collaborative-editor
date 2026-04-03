@@ -1,0 +1,183 @@
+const express = require('express');
+const router = express.Router();
+const Document = require('../models/Document');
+const crypto = require('crypto');
+
+// Generate unique document ID
+const generateDocId = () => {
+  return crypto.randomBytes(8).toString('hex');
+};
+
+// GET /api/documents - List all documents
+router.get('/', async (req, res) => {
+  try {
+    const documents = await Document.find({}, {
+      docId: 1,
+      title: 1,
+      owner: 1,
+      createdAt: 1,
+      updatedAt: 1,
+      isPublic: 1
+    }).sort({ updatedAt: -1 }).limit(50);
+    
+    res.json(documents);
+  } catch (error) {
+    console.error('Error fetching documents:', error);
+    res.status(500).json({ error: 'Failed to fetch documents' });
+  }
+});
+
+// POST /api/documents - Create new document
+router.post('/', async (req, res) => {
+  try {
+    const { title, owner } = req.body;
+    
+    const doc = new Document({
+      docId: generateDocId(),
+      title: title || 'Untitled Document',
+      owner: owner || 'anonymous'
+    });
+    
+    await doc.save();
+    
+    res.status(201).json({
+      docId: doc.docId,
+      title: doc.title,
+      createdAt: doc.createdAt
+    });
+  } catch (error) {
+    console.error('Error creating document:', error);
+    res.status(500).json({ error: 'Failed to create document' });
+  }
+});
+
+// GET /api/documents/:docId - Get document details
+router.get('/:docId', async (req, res) => {
+  try {
+    const doc = await Document.findOne({ docId: req.params.docId });
+    
+    if (!doc) {
+      return res.status(404).json({ error: 'Document not found' });
+    }
+    
+    res.json({
+      docId: doc.docId,
+      title: doc.title,
+      owner: doc.owner,
+      createdAt: doc.createdAt,
+      updatedAt: doc.updatedAt,
+      collaborators: doc.collaborators,
+      revisionsCount: doc.revisions?.length || 0
+    });
+  } catch (error) {
+    console.error('Error fetching document:', error);
+    res.status(500).json({ error: 'Failed to fetch document' });
+  }
+});
+
+// PATCH /api/documents/:docId - Update document metadata
+router.patch('/:docId', async (req, res) => {
+  try {
+    const { title, isPublic } = req.body;
+    const update = {};
+    
+    if (title !== undefined) update.title = title;
+    if (isPublic !== undefined) update.isPublic = isPublic;
+    
+    const doc = await Document.findOneAndUpdate(
+      { docId: req.params.docId },
+      { $set: update },
+      { new: true }
+    );
+    
+    if (!doc) {
+      return res.status(404).json({ error: 'Document not found' });
+    }
+    
+    res.json({
+      docId: doc.docId,
+      title: doc.title,
+      updatedAt: doc.updatedAt
+    });
+  } catch (error) {
+    console.error('Error updating document:', error);
+    res.status(500).json({ error: 'Failed to update document' });
+  }
+});
+
+// DELETE /api/documents/:docId - Delete document
+router.delete('/:docId', async (req, res) => {
+  try {
+    const doc = await Document.findOneAndDelete({ docId: req.params.docId });
+    
+    if (!doc) {
+      return res.status(404).json({ error: 'Document not found' });
+    }
+    
+    res.json({ message: 'Document deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting document:', error);
+    res.status(500).json({ error: 'Failed to delete document' });
+  }
+});
+
+// GET /api/documents/:docId/revisions - Get revision history
+router.get('/:docId/revisions', async (req, res) => {
+  try {
+    const doc = await Document.findOne({ docId: req.params.docId }, { revisions: 1 });
+    
+    if (!doc) {
+      return res.status(404).json({ error: 'Document not found' });
+    }
+    
+    const revisions = (doc.revisions || []).map((rev, index) => ({
+      id: index,
+      savedAt: rev.savedAt,
+      savedBy: rev.savedBy,
+      title: rev.title
+    }));
+    
+    res.json(revisions);
+  } catch (error) {
+    console.error('Error fetching revisions:', error);
+    res.status(500).json({ error: 'Failed to fetch revisions' });
+  }
+});
+
+// POST /api/documents/:docId/revisions - Save a revision
+router.post('/:docId/revisions', async (req, res) => {
+  try {
+    const { savedBy } = req.body;
+    
+    const doc = await Document.findOne({ docId: req.params.docId });
+    
+    if (!doc) {
+      return res.status(404).json({ error: 'Document not found' });
+    }
+    
+    // Add current state as a revision
+    doc.revisions = doc.revisions || [];
+    doc.revisions.push({
+      content: doc.content,
+      title: doc.title,
+      savedBy: savedBy || 'anonymous'
+    });
+    
+    // Keep only last 20 revisions
+    if (doc.revisions.length > 20) {
+      doc.revisions = doc.revisions.slice(-20);
+    }
+    
+    await doc.save();
+    
+    res.status(201).json({
+      message: 'Revision saved',
+      revisionId: doc.revisions.length - 1
+    });
+  } catch (error) {
+    console.error('Error saving revision:', error);
+    res.status(500).json({ error: 'Failed to save revision' });
+  }
+});
+
+module.exports = router;

@@ -1,0 +1,346 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg-primary: #0f172a;
+  --bg-secondary: #1e293b;
+  --bg-tertiary: #334155;
+  --text-primary: #f8fafc;
+  --text-secondary: #94a3b8;
+  --accent-primary: #6366f1;
+  --accent-secondary: #ec4899;
+  --success: #10b981;
+  --warning: #f59e0b;
+  --error: #ef4444;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Animated background */
+.animated-bg {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: -1;
+  background: 
+    radial-gradient(ellipse at 20% 20%, rgba(99, 102, 241, 0.15) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 80%, rgba(236, 72, 153, 0.15) 0%, transparent 50%),
+    radial-gradient(ellipse at 50% 50%, rgba(16, 185, 129, 0.1) 0%, transparent 50%),
+    var(--bg-primary);
+  animation: bgShift 20s ease-in-out infinite;
+}
+
+@keyframes bgShift {
+  0%, 100% { 
+    background-position: 0% 0%, 100% 100%, 50% 50%;
+  }
+  50% { 
+    background-position: 100% 100%, 0% 0%, 50% 0%;
+  }
+}
+
+/* Floating particles */
+.particles {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  z-index: -1;
+  overflow: hidden;
+}
+
+.particle {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  background: rgba(99, 102, 241, 0.5);
+  border-radius: 50%;
+  animation: floatParticle 15s infinite ease-in-out;
+}
+
+@keyframes floatParticle {
+  0%, 100% {
+    transform: translateY(100vh) rotate(0deg);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-100vh) rotate(720deg);
+    opacity: 0;
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-secondary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--bg-tertiary);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-primary);
+}
+
+/* Quill editor customization */
+.ql-container {
+  font-family: 'Inter', sans-serif;
+  font-size: 16px;
+}
+
+.ql-editor {
+  min-height: 500px;
+  padding: 2rem;
+  line-height: 1.8;
+  color: var(--text-primary);
+}
+
+.ql-editor.ql-blank::before {
+  color: var(--text-secondary);
+  font-style: normal;
+}
+
+.ql-toolbar.ql-snow {
+  background: var(--bg-secondary);
+  border: none;
+  border-bottom: 1px solid var(--bg-tertiary);
+  border-radius: 12px 12px 0 0;
+  padding: 12px 16px;
+}
+
+.ql-container.ql-snow {
+  background: var(--bg-secondary);
+  border: none;
+  border-radius: 0 0 12px 12px;
+}
+
+.ql-snow .ql-stroke {
+  stroke: var(--text-secondary);
+}
+
+.ql-snow .ql-fill {
+  fill: var(--text-secondary);
+}
+
+.ql-snow .ql-picker {
+  color: var(--text-secondary);
+}
+
+.ql-snow .ql-picker-options {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--bg-tertiary);
+  border-radius: 8px;
+}
+
+.ql-snow .ql-picker-item:hover {
+  color: var(--accent-primary);
+}
+
+.ql-snow.ql-toolbar button:hover,
+.ql-snow .ql-toolbar button:hover {
+  color: var(--accent-primary);
+}
+
+.ql-snow.ql-toolbar button:hover .ql-stroke,
+.ql-snow .ql-toolbar button:hover .ql-stroke {
+  stroke: var(--accent-primary);
+}
+
+.ql-snow.ql-toolbar button:hover .ql-fill,
+.ql-snow .ql-toolbar button:hover .ql-fill {
+  fill: var(--accent-primary);
+}
+
+.ql-snow.ql-toolbar button.ql-active,
+.ql-snow .ql-toolbar button.ql-active {
+  color: var(--accent-primary);
+}
+
+.ql-snow.ql-toolbar button.ql-active .ql-stroke,
+.ql-snow .ql-toolbar button.ql-active .ql-stroke {
+  stroke: var(--accent-primary);
+}
+
+.ql-snow.ql-toolbar button.ql-active .ql-fill,
+.ql-snow .ql-toolbar button.ql-active .ql-fill {
+  fill: var(--accent-primary);
+}
+
+/* Remote cursor styles */
+.ql-cursor {
+  position: absolute;
+  pointer-events: none;
+}
+
+.ql-cursor-caret {
+  width: 2px;
+  animation: cursorBlink 1s ease-in-out infinite;
+}
+
+@keyframes cursorBlink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.ql-cursor-name {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+  transform: translateY(-100%);
+}
+
+/* Button styles */
+.btn-primary {
+  @apply px-4 py-2 bg-gradient-to-r from-primary-500 to-primary-600 text-white rounded-lg font-medium
+         hover:from-primary-600 hover:to-primary-700 transition-all duration-200
+         shadow-lg shadow-primary-500/25 hover:shadow-primary-500/40;
+}
+
+.btn-secondary {
+  @apply px-4 py-2 bg-dark-card text-white rounded-lg font-medium
+         border border-dark-border hover:bg-dark-border transition-all duration-200;
+}
+
+.btn-ghost {
+  @apply px-4 py-2 text-gray-400 hover:text-white hover:bg-dark-card rounded-lg transition-all duration-200;
+}
+
+/* Card styles */
+.card {
+  @apply bg-dark-card border border-dark-border rounded-xl p-6 shadow-xl;
+}
+
+/* Input styles */
+.input {
+  @apply w-full px-4 py-3 bg-dark-card border border-dark-border rounded-lg text-white
+         placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent
+         transition-all duration-200;
+}
+
+/* Tooltip */
+.tooltip {
+  @apply absolute z-50 px-2 py-1 text-xs bg-dark-card text-white rounded shadow-lg
+         border border-dark-border whitespace-nowrap;
+}
+
+/* User avatar */
+.avatar {
+  @apply w-8 h-8 rounded-full flex items-center justify-center text-white font-semibold text-sm
+         ring-2 ring-dark-card transition-transform hover:scale-110;
+}
+
+/* Typing indicator */
+.typing-indicator {
+  display: inline-flex;
+  gap: 3px;
+  padding: 4px 8px;
+  background: var(--bg-tertiary);
+  border-radius: 12px;
+}
+
+.typing-indicator span {
+  width: 6px;
+  height: 6px;
+  background: var(--text-secondary);
+  border-radius: 50%;
+  animation: typingBounce 1.4s infinite ease-in-out;
+}
+
+.typing-indicator span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.typing-indicator span:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes typingBounce {
+  0%, 60%, 100% { transform: translateY(0); }
+  30% { transform: translateY(-6px); }
+}
+
+/* Modal backdrop */
+.modal-backdrop {
+  @apply fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.modal-content {
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { 
+    opacity: 0;
+    transform: translateY(20px) scale(0.95);
+  }
+  to { 
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Status indicator */
+.status-dot {
+  @apply w-2 h-2 rounded-full;
+}
+
+.status-dot.online {
+  @apply bg-green-500;
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.6);
+}
+
+.status-dot.offline {
+  @apply bg-gray-500;
+}
+
+/* Document card hover effect */
+.doc-card {
+  @apply relative overflow-hidden;
+}
+
+.doc-card::before {
+  content: '';
+  @apply absolute inset-0 bg-gradient-to-r from-primary-500/0 via-primary-500/5 to-primary-500/0
+         opacity-0 transition-opacity duration-300;
+}
+
+.doc-card:hover::before {
+  @apply opacity-100;
+}
