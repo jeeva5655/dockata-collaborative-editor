@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
+import Landing from './components/Landing'
 import Home from './components/Home'
 import EditorPro from './components/EditorPro'
 import Particles from './components/Particles'
@@ -29,14 +30,21 @@ function App() {
     <BrowserRouter>
       <div className="min-h-screen">
         <Routes>
-          <Route path="/" element={
+          {/* Landing page - Google Docs style */}
+          <Route path="/" element={<Landing user={user} />} />
+          
+          {/* Dashboard with documents */}
+          <Route path="/dashboard" element={
             <>
               <div className="animated-bg" />
               <Particles />
               <Home user={user} setUser={setUser} />
             </>
           } />
+          
+          {/* Editor */}
           <Route path="/doc/:docId" element={<EditorPro user={user} setUser={setUser} />} />
+          
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </div>

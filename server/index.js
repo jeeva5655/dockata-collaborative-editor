@@ -50,9 +50,12 @@ app.use(express.json());
 // API Routes
 app.use('/api/documents', documentRoutes);
 
-// Health check
+// Health check endpoints
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString(), websocket: 'enabled' });
+});
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  res.json({ status: 'ok', timestamp: new Date().toISOString(), websocket: 'enabled' });
 });
 
 // Serve static files in production
@@ -123,7 +126,9 @@ const wss = new WebSocketServer({ noServer: true });
 
 // Handle HTTP upgrade for WebSocket
 server.on('upgrade', (request, socket, head) => {
+  console.log('[WS] Upgrade request for:', request.url);
   wss.handleUpgrade(request, socket, head, (ws) => {
+    console.log('[WS] Upgrade successful');
     wss.emit('connection', ws, request);
   });
 });
