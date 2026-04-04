@@ -260,14 +260,13 @@ export default function EditorProV2() {
     const sessionColor = getSessionColor(sessionId)
     setMySessionColor(sessionColor)
 
-    // Custom cursor template for Google Docs style appearance
+    // Custom cursor template for visible name labels like in reference image
     const cursorTemplate = `
       <span class="ql-cursor-caret-container">
         <span class="ql-cursor-caret"></span>
       </span>
       <span class="ql-cursor-flag">
         <span class="ql-cursor-name"></span>
-        <span class="ql-cursor-color-indicator"></span>
       </span>
     `
 
@@ -277,8 +276,8 @@ export default function EditorProV2() {
         cursors: {
           template: cursorTemplate,
           transformOnTextChange: true,
-          hideDelayMs: 3000,  // Hide name after 3 seconds (like Google Docs)
-          hideSpeedMs: 200,
+          hideDelayMs: null,  // NEVER hide the name flag
+          hideSpeedMs: 0,
           selectionChangeSource: 'api'
         },
         toolbar: '#toolbar',
@@ -311,115 +310,62 @@ export default function EditorProV2() {
     const provider = new WebsocketProvider(wsUrl, docId, ydoc)
     providerRef.current = provider
 
-    const ytext = ydoc.getText('quill')
-    const binding = new QuillBinding(ytext, quill, provider.awareness)
-
-    // Set user info for awareness with SESSION-BASED color (Google Docs style)
-    // The color is assigned per-session, not per-user
+    // CRITICAL: Set user info in awareness BEFORE creating QuillBinding
+    // This ensures y-quill uses our session color for cursor rendering
+    // If set after, y-quill will use a default color and cursor won't match avatar
     provider.awareness.setLocalStateField('user', {
       name: user?.name || 'Anonymous',
       sessionId: sessionId,
-      color: sessionColor.primary,        // Cursor/caret color
+      color: sessionColor.primary,        // Cursor/caret color - MUST match avatar border
       colorLight: sessionColor.light,     // Selection highlight color
       colorName: sessionColor.name,       // Color name for accessibility
       photoURL: user?.photoURL || null,   // Profile photo if available
       email: user?.email || null
     })
 
-    // Track remote users and their cursors
+    const ytext = ydoc.getText('quill')
+    // QuillBinding will now use the awareness.user.color we just set
+    const binding = new QuillBinding(ytext, quill, provider.awareness)
+
+    // Track remote users for avatar display
+    // NOTE: y-quill's QuillBinding handles ALL cursor management internally
+    // We only use this to populate the collaborator avatar list
     const updateCollaborators = () => {
       const states = provider.awareness.getStates()
       const users = []
       const typing = []
-      const removedClientIds = new Set()
-      
-      // Get current cursor IDs
-      const existingCursorIds = new Set(
-        cursorsRef.current?.cursors()?.map(c => c.id) || []
-      )
       
       states.forEach((state, clientId) => {
         if (state.user && clientId !== provider.awareness.clientID) {
           const remoteUser = {
             ...state.user,
             clientId,
-            // Use the color that was assigned to this user's session
+            // Use the color from awareness (set by the remote user)
+            // This MUST match what y-quill uses for cursor color
             color: state.user.color || CURSOR_COLORS[clientId % CURSOR_COLORS.length].primary,
             colorLight: state.user.colorLight || CURSOR_COLORS[clientId % CURSOR_COLORS.length].light
           }
           users.push(remoteUser)
           
-          // Manage cursors
-          if (cursorsRef.current) {
-            try {
-              const cursorId = clientId.toString()
-              existingCursorIds.delete(cursorId)
-              
-              // Create cursor if it doesn't exist
-              const existingCursors = cursorsRef.current.cursors()
-              const existingCursor = existingCursors.find(c => c.id === cursorId)
-              
-              if (!existingCursor) {
-                cursorsRef.current.createCursor(
-                  cursorId,
-                  remoteUser.name || 'Anonymous',
-                  remoteUser.color
-                )
-              }
-              
-              // Move cursor to user's selection position
-              // The y-quill binding stores cursor info in awareness
-              if (state.cursor) {
-                const anchor = state.cursor.anchor
-                const head = state.cursor.head
-                
-                if (anchor !== null && head !== null) {
-                  const index = Math.min(anchor, head)
-                  const length = Math.abs(head - anchor)
-                  
-                  // Move cursor to position
-                  cursorsRef.current.moveCursor(cursorId, { index, length })
-                  
-                  // Show the flag briefly when cursor moves
-                  cursorsRef.current.toggleFlag(cursorId, true)
-                  
-                  // Track who is actively typing (cursor at single position)
-                  if (length === 0) {
-                    typing.push(remoteUser)
-                  }
-                }
-              }
-            } catch (e) {
-              // Cursor handling errors are usually harmless
-            }
+          // Track typing status based on cursor presence
+          if (state.cursor) {
+            typing.push(remoteUser)
           }
         }
-      })
-      
-      // Remove cursors for users who left
-      existingCursorIds.forEach(id => {
-        try {
-          cursorsRef.current?.removeCursor(id)
-        } catch (e) {}
       })
       
       setCollaborators(users)
       setTypingUsers(typing)
     }
 
-    // Update on awareness changes (user joins/leaves, cursor moves)
+    // Update avatar list on awareness changes
+    // y-quill's QuillBinding already listens to awareness for cursor updates
     provider.awareness.on('change', updateCollaborators)
     
-    // Broadcast cursor position on selection change
-    quill.on('selection-change', (range, oldRange, source) => {
-      if (range) {
-        // Broadcast cursor position to other users
-        provider.awareness.setLocalStateField('cursor', {
-          anchor: range.index,
-          head: range.index + range.length
-        })
-      }
-    })
+    // NOTE: y-quill's QuillBinding already handles cursor position broadcasting
+    // via its editor-change listener. It converts positions to RelativePosition
+    // format which is more accurate for CRDT documents.
+    // We don't need our own selection-change handler.
 
     provider.on('status', ({ status }) => {
       setConnected(status === 'connected')

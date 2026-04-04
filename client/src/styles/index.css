@@ -373,8 +373,8 @@ body {
 }
 
 /* ===========================================
-   COLLABORATIVE CURSOR STYLES - Google Docs Style
-   Real-time cursor + selection highlighting
+   COLLABORATIVE CURSOR STYLES - Always Visible
+   Like the reference image with colored cursors + name labels
    =========================================== */
 
 /* Base cursor container */
@@ -384,71 +384,61 @@ body {
   z-index: 9999 !important;
 }
 
-/* Cursor caret container */
+/* Cursor caret (the vertical colored line) */
 .ql-cursor-caret-container {
   position: absolute;
   width: 2px;
   height: 100%;
 }
 
-/* Cursor caret (the blinking line) - Google Docs style */
 .ql-cursor-caret {
   position: absolute;
   width: 2px !important;
   height: 100%;
   border-radius: 1px;
-  animation: cursorBlink 1.2s ease-in-out infinite;
 }
 
-@keyframes cursorBlink {
-  0%, 40%, 100% { opacity: 1; }
-  50%, 90% { opacity: 0.4; }
-}
-
-/* Cursor flag (name label) - Google Docs style */
+/* Cursor flag (name label) - ALWAYS VISIBLE */
 .ql-cursor-flag {
   position: absolute !important;
   top: 0;
   left: 0;
   transform: translateY(-100%);
-  padding: 2px 6px;
-  font-size: 11px;
-  font-weight: 500;
-  font-family: 'Google Sans', 'Roboto', -apple-system, sans-serif;
+  padding: 2px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: 'Segoe UI', 'Roboto', -apple-system, sans-serif;
   white-space: nowrap;
   color: white !important;
-  border-radius: 2px 2px 2px 0;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
+  border-radius: 3px 3px 3px 0;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
   z-index: 10000 !important;
-  line-height: 1.3;
-  letter-spacing: 0.01em;
-  /* Hover effect */
-  transition: opacity 0.15s ease;
+  line-height: 1.4;
+  opacity: 1 !important;  /* ALWAYS VISIBLE */
+  visibility: visible !important;
 }
 
-/* Show flag on cursor hover */
-.ql-cursor:hover .ql-cursor-flag {
+/* Keep flag visible even on "hidden" state */
+.ql-cursor.hidden .ql-cursor-flag {
   opacity: 1 !important;
+  visibility: visible !important;
 }
 
 /* The name text inside the flag */
 .ql-cursor-name {
   color: white !important;
-  font-weight: 500;
+  font-weight: 600;
 }
 
-/* Color indicator dot (optional) */
+/* Color indicator dot (hide it) */
 .ql-cursor-color-indicator {
   display: none;
 }
 
-/* Selection highlight - CRITICAL for Google Docs style */
-/* This shows colored background when remote user selects text */
+/* Selection highlight when remote user selects text */
 .ql-cursor-selection-block {
-  opacity: 0.35 !important;
-  border-radius: 1px;
-  /* Smooth transition when selection changes */
-  transition: all 0.1s ease;
+  opacity: 0.3 !important;
+  border-radius: 2px;
 }
 
 /* Quill Cursors container */
@@ -474,37 +464,39 @@ body {
   z-index: 1;
 }
 
-/* Override quill-cursors default styles for visibility */
+/* CRITICAL: Override quill-cursors default styles */
+/* Make caret thicker and more visible */
 .ql-cursors .ql-cursor .ql-cursor-caret {
   position: absolute;
-  width: 3px !important;
-  box-shadow: 0 0 4px rgba(0,0,0,0.3);
+  width: 2px !important;
+  min-height: 18px;
+  box-shadow: 0 0 3px rgba(0,0,0,0.3);
 }
 
+/* Make flag ALWAYS visible with good styling */
 .ql-cursors .ql-cursor .ql-cursor-flag {
   position: absolute !important;
-  font-size: 11px;
-  font-weight: 600;
-  padding: 3px 8px;
-  border-radius: 4px 4px 4px 0;
-  white-space: nowrap;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  padding: 3px 8px !important;
+  border-radius: 3px 3px 3px 0 !important;
+  white-space: nowrap !important;
   color: white !important;
-  transform: translateY(-100%);
-  margin-top: -2px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-  font-family: 'Google Sans', 'Segoe UI', -apple-system, sans-serif;
+  transform: translateY(-100%) !important;
+  margin-top: -2px !important;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.25) !important;
+  font-family: 'Segoe UI', 'Roboto', sans-serif !important;
   z-index: 10000 !important;
+  opacity: 1 !important;  /* NEVER HIDE */
+  visibility: visible !important;
+  display: block !important;
 }
 
-/* Hide the flag when idle after delay */
+/* Override hidden state - KEEP FLAG VISIBLE */
 .ql-cursors .ql-cursor.hidden .ql-cursor-flag {
-  opacity: 0;
-  transition: opacity 0.3s ease;
-}
-
-/* Show flag on hover */
-.ql-cursors .ql-cursor:hover .ql-cursor-flag {
   opacity: 1 !important;
+  visibility: visible !important;
+  display: block !important;
 }
 
 /* Typing indicator animation */

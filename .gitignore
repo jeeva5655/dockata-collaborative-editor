@@ -27,3 +27,5 @@ npm-debug.log*
 # Misc
 *.pyc
 __pycache__/
+.vercel
+.env*.local
