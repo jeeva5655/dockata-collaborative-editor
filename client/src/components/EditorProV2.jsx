@@ -226,14 +226,25 @@ export default function EditorProV2() {
     // Get user color based on their ID
     const userColor = user?.color || getUserColor(user?.uid || user?.name || 'anonymous')
 
+    // Custom cursor template for Google Docs style appearance
+    const cursorTemplate = `
+      <span class="ql-cursor-caret-container">
+        <span class="ql-cursor-caret"></span>
+      </span>
+      <span class="ql-cursor-flag">
+        <span class="ql-cursor-name"></span>
+      </span>
+    `
+
     const quill = new Quill(editorRef.current, {
       theme: 'snow',
       modules: {
         cursors: {
+          template: cursorTemplate,
           transformOnTextChange: true,
-          hideDelayMs: 5000,
-          hideSpeedMs: 0,
-          selectionChangeSource: null
+          hideDelayMs: 10000,  // Keep name visible longer
+          hideSpeedMs: 300,
+          selectionChangeSource: 'api'
         },
         toolbar: '#toolbar',
         history: { userOnly: true }
@@ -266,19 +277,20 @@ export default function EditorProV2() {
     providerRef.current = provider
 
     const ytext = ydoc.getText('quill')
-    new QuillBinding(ytext, quill, provider.awareness)
+    const binding = new QuillBinding(ytext, quill, provider.awareness)
 
     // Set user info for awareness with unique color
     provider.awareness.setLocalStateField('user', {
       name: user?.name || 'Anonymous',
       color: userColor,
-      odataId: user?.uid || Math.random().toString(36).substr(2, 9)
+      colorLight: getUserColorPalette(user?.uid || user?.name || 'anonymous').light
     })
 
-    // Track collaborators and update cursors
+    // Track collaborators and update cursors with positions
     const updateCollaborators = () => {
       const states = provider.awareness.getStates()
       const users = []
+      const typing = []
       
       states.forEach((state, clientId) => {
         if (state.user && clientId !== provider.awareness.clientID) {
@@ -289,27 +301,63 @@ export default function EditorProV2() {
           }
           users.push(collaborator)
           
-          // Update or create cursor with user's color
+          // Create/update cursor with user's color and position
           if (cursorsRef.current) {
             try {
-              // Remove existing cursor first to update color
-              cursorsRef.current.removeCursor(clientId.toString())
-              cursorsRef.current.createCursor(
-                clientId.toString(),
-                state.user.name || 'Anonymous',
-                collaborator.color
-              )
+              // Check if cursor exists, if not create it
+              const existingCursors = cursorsRef.current.cursors()
+              const existingCursor = existingCursors.find(c => c.id === clientId.toString())
+              
+              if (!existingCursor) {
+                cursorsRef.current.createCursor(
+                  clientId.toString(),
+                  state.user.name || 'Anonymous',
+                  collaborator.color
+                )
+              }
+              
+              // Move cursor to user's selection if available
+              if (state.cursor) {
+                // y-quill stores cursor as {anchor, head} relative positions
+                // Convert to Quill range
+                const anchor = state.cursor.anchor
+                const head = state.cursor.head
+                
+                if (anchor !== null && head !== null) {
+                  const index = Math.min(anchor, head)
+                  const length = Math.abs(head - anchor)
+                  cursorsRef.current.moveCursor(clientId.toString(), { index, length })
+                  
+                  // Track who is actively typing
+                  if (length === 0) {
+                    typing.push(collaborator)
+                  }
+                }
+              }
             } catch (e) {
-              // Cursor handling
+              console.log('Cursor handling:', e)
             }
           }
         }
       })
       
       setCollaborators(users)
+      setTypingUsers(typing)
     }
 
+    // Update on awareness changes
     provider.awareness.on('change', updateCollaborators)
+    
+    // Also update cursors on text changes for smooth movement
+    quill.on('selection-change', (range, oldRange, source) => {
+      if (range && source === 'user') {
+        // Broadcast our cursor position
+        provider.awareness.setLocalStateField('cursor', {
+          anchor: range.index,
+          head: range.index + range.length
+        })
+      }
+    })
 
     provider.on('status', ({ status }) => {
       setConnected(status === 'connected')
