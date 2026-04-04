@@ -2,14 +2,14 @@
 import { initializeApp } from 'firebase/app'
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth'
 
-// Firebase config - Replace with your own Firebase project credentials
+// Firebase config for DocKata
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyDemo-key-replace-with-yours",
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "dockata-demo.firebaseapp.com",
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "dockata-demo",
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "dockata-demo.appspot.com",
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "123456789",
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:123456789:web:abc123"
+  apiKey: "AIzaSyA9z3zfElY5a7QWXVhjPrxvizSaGSy1cr8",
+  authDomain: "dockata-feaf0.firebaseapp.com",
+  projectId: "dockata-feaf0",
+  storageBucket: "dockata-feaf0.firebasestorage.app",
+  messagingSenderId: "1016901773546",
+  appId: "1:1016901773546:web:9c838718b3bba0b7c8cf93"
 }
 
 // Initialize Firebase
