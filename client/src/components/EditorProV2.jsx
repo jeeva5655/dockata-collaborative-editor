@@ -33,39 +33,66 @@ const Size = Quill.import('attributors/style/size')
 Size.whitelist = ['10px', '12px', '14px', '16px', '18px', '20px', '24px', '28px', '32px', '36px', '48px', '72px']
 Quill.register(Size, true)
 
-// Enhanced collaborator colors - high contrast, accessible, distinct
-// Based on color science for maximum differentiation (color blindness friendly)
-const collaboratorColors = [
-  { primary: '#0B5394', light: '#C9DAF8', name: 'Blue' },      // Google Blue
-  { primary: '#38761D', light: '#D9EAD3', name: 'Green' },     // Forest Green
-  { primary: '#9900FF', light: '#E4D7F5', name: 'Purple' },    // Vibrant Purple
-  { primary: '#E06666', light: '#F4CCCC', name: 'Red' },       // Soft Red
-  { primary: '#F6B26B', light: '#FCE5CD', name: 'Orange' },    // Warm Orange
-  { primary: '#6FA8DC', light: '#CFE2F3', name: 'Sky' },       // Sky Blue
-  { primary: '#93C47D', light: '#D9EAD3', name: 'Mint' },      // Mint Green
-  { primary: '#8E7CC3', light: '#D9D2E9', name: 'Lavender' },  // Lavender
-  { primary: '#E69138', light: '#FCE5CD', name: 'Tangerine' }, // Tangerine
-  { primary: '#A64D79', light: '#EAD1DC', name: 'Magenta' },   // Magenta
-  { primary: '#45818E', light: '#D0E0E3', name: 'Teal' },      // Teal
-  { primary: '#CC0000', light: '#F4CCCC', name: 'Crimson' },   // Crimson
-  { primary: '#674EA7', light: '#D9D2E9', name: 'Indigo' },    // Indigo
-  { primary: '#3D85C6', light: '#C9DAF8', name: 'Cobalt' },    // Cobalt
-  { primary: '#76A5AF', light: '#D0E0E3', name: 'Cyan' },      // Cyan
-  { primary: '#E91E63', light: '#FCE4EC', name: 'Pink' },      // Pink
+// Enhanced collaborator colors - Google Docs style palette
+// High contrast, accessible, session-based assignment
+const CURSOR_COLORS = [
+  { primary: '#4285F4', light: '#D2E3FC', name: 'Blue' },       // Google Blue
+  { primary: '#EA4335', light: '#FAD2CF', name: 'Red' },        // Google Red
+  { primary: '#34A853', light: '#CEEAD6', name: 'Green' },      // Google Green
+  { primary: '#FBBC05', light: '#FEF7E0', name: 'Yellow' },     // Google Yellow
+  { primary: '#9334E6', light: '#E9D5F5', name: 'Purple' },     // Purple
+  { primary: '#E91E63', light: '#FCE4EC', name: 'Pink' },       // Pink
+  { primary: '#00BCD4', light: '#B2EBF2', name: 'Cyan' },       // Cyan
+  { primary: '#FF5722', light: '#FFCCBC', name: 'Orange' },     // Deep Orange
+  { primary: '#795548', light: '#D7CCC8', name: 'Brown' },      // Brown
+  { primary: '#607D8B', light: '#CFD8DC', name: 'Blue Grey' },  // Blue Grey
+  { primary: '#009688', light: '#B2DFDB', name: 'Teal' },       // Teal
+  { primary: '#673AB7', light: '#D1C4E9', name: 'Deep Purple' },// Deep Purple
+  { primary: '#3F51B5', light: '#C5CAE9', name: 'Indigo' },     // Indigo
+  { primary: '#8BC34A', light: '#DCEDC8', name: 'Light Green' },// Light Green
+  { primary: '#FF9800', light: '#FFE0B2', name: 'Amber' },      // Amber
+  { primary: '#9C27B0', light: '#E1BEE7', name: 'Violet' },     // Violet
 ]
 
-// Get color palette for user based on their ID/name
-const getUserColorPalette = (userId) => {
+// Track assigned colors per session (used colors in current document)
+let usedColorIndices = new Set()
+
+// Get next available color (session-based, like Google Docs)
+const getSessionColor = (sessionId) => {
+  // Use sessionId to deterministically but uniquely assign color
   let hash = 0
-  for (let i = 0; i < userId.length; i++) {
-    hash = userId.charCodeAt(i) + ((hash << 5) - hash)
+  for (let i = 0; i < sessionId.length; i++) {
+    hash = sessionId.charCodeAt(i) + ((hash << 5) - hash)
   }
-  return collaboratorColors[Math.abs(hash) % collaboratorColors.length]
+  
+  // Start from hashed position and find next unused color
+  const startIndex = Math.abs(hash) % CURSOR_COLORS.length
+  let colorIndex = startIndex
+  
+  // Try to find an unused color
+  for (let i = 0; i < CURSOR_COLORS.length; i++) {
+    colorIndex = (startIndex + i) % CURSOR_COLORS.length
+    if (!usedColorIndices.has(colorIndex)) {
+      usedColorIndices.add(colorIndex)
+      break
+    }
+  }
+  
+  return { ...CURSOR_COLORS[colorIndex], index: colorIndex }
+}
+
+// Release color when user leaves
+const releaseSessionColor = (colorIndex) => {
+  usedColorIndices.delete(colorIndex)
 }
 
 // Legacy function for backwards compatibility
 const getUserColor = (userId) => {
-  return getUserColorPalette(userId).primary
+  return getSessionColor(userId).primary
+}
+
+const getUserColorPalette = (userId) => {
+  return getSessionColor(userId)
 }
 
 // AI Writing Prompts (Free - using local generation)
@@ -124,6 +151,9 @@ export default function EditorProV2() {
   const ydocRef = useRef(null)
   const cursorsRef = useRef(null)
   const autoSaveTimerRef = useRef(null)
+  
+  // My session color (assigned when joining document)
+  const [mySessionColor, setMySessionColor] = useState(null)
   
   // Document state
   const [title, setTitle] = useState('Untitled Document')
@@ -223,8 +253,12 @@ export default function EditorProV2() {
   useEffect(() => {
     if (!editorRef.current || quillRef.current) return
 
-    // Get user color based on their ID
-    const userColor = user?.color || getUserColor(user?.uid || user?.name || 'anonymous')
+    // Generate unique session ID for this editing session
+    const sessionId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+    
+    // Get session-based color (like Google Docs)
+    const sessionColor = getSessionColor(sessionId)
+    setMySessionColor(sessionColor)
 
     // Custom cursor template for Google Docs style appearance
     const cursorTemplate = `
@@ -233,6 +267,7 @@ export default function EditorProV2() {
       </span>
       <span class="ql-cursor-flag">
         <span class="ql-cursor-name"></span>
+        <span class="ql-cursor-color-indicator"></span>
       </span>
     `
 
@@ -242,8 +277,8 @@ export default function EditorProV2() {
         cursors: {
           template: cursorTemplate,
           transformOnTextChange: true,
-          hideDelayMs: 10000,  // Keep name visible longer
-          hideSpeedMs: 300,
+          hideDelayMs: 3000,  // Hide name after 3 seconds (like Google Docs)
+          hideSpeedMs: 200,
           selectionChangeSource: 'api'
         },
         toolbar: '#toolbar',
@@ -279,79 +314,106 @@ export default function EditorProV2() {
     const ytext = ydoc.getText('quill')
     const binding = new QuillBinding(ytext, quill, provider.awareness)
 
-    // Set user info for awareness with unique color
+    // Set user info for awareness with SESSION-BASED color (Google Docs style)
+    // The color is assigned per-session, not per-user
     provider.awareness.setLocalStateField('user', {
       name: user?.name || 'Anonymous',
-      color: userColor,
-      colorLight: getUserColorPalette(user?.uid || user?.name || 'anonymous').light
+      sessionId: sessionId,
+      color: sessionColor.primary,        // Cursor/caret color
+      colorLight: sessionColor.light,     // Selection highlight color
+      colorName: sessionColor.name,       // Color name for accessibility
+      photoURL: user?.photoURL || null,   // Profile photo if available
+      email: user?.email || null
     })
 
-    // Track collaborators and update cursors with positions
+    // Track remote users and their cursors
     const updateCollaborators = () => {
       const states = provider.awareness.getStates()
       const users = []
       const typing = []
+      const removedClientIds = new Set()
+      
+      // Get current cursor IDs
+      const existingCursorIds = new Set(
+        cursorsRef.current?.cursors()?.map(c => c.id) || []
+      )
       
       states.forEach((state, clientId) => {
         if (state.user && clientId !== provider.awareness.clientID) {
-          const collaborator = {
+          const remoteUser = {
             ...state.user,
             clientId,
-            color: state.user.color || getUserColor(state.user.name || clientId.toString())
+            // Use the color that was assigned to this user's session
+            color: state.user.color || CURSOR_COLORS[clientId % CURSOR_COLORS.length].primary,
+            colorLight: state.user.colorLight || CURSOR_COLORS[clientId % CURSOR_COLORS.length].light
           }
-          users.push(collaborator)
+          users.push(remoteUser)
           
-          // Create/update cursor with user's color and position
+          // Manage cursors
           if (cursorsRef.current) {
             try {
-              // Check if cursor exists, if not create it
+              const cursorId = clientId.toString()
+              existingCursorIds.delete(cursorId)
+              
+              // Create cursor if it doesn't exist
               const existingCursors = cursorsRef.current.cursors()
-              const existingCursor = existingCursors.find(c => c.id === clientId.toString())
+              const existingCursor = existingCursors.find(c => c.id === cursorId)
               
               if (!existingCursor) {
                 cursorsRef.current.createCursor(
-                  clientId.toString(),
-                  state.user.name || 'Anonymous',
-                  collaborator.color
+                  cursorId,
+                  remoteUser.name || 'Anonymous',
+                  remoteUser.color
                 )
               }
               
-              // Move cursor to user's selection if available
+              // Move cursor to user's selection position
+              // The y-quill binding stores cursor info in awareness
               if (state.cursor) {
-                // y-quill stores cursor as {anchor, head} relative positions
-                // Convert to Quill range
                 const anchor = state.cursor.anchor
                 const head = state.cursor.head
                 
                 if (anchor !== null && head !== null) {
                   const index = Math.min(anchor, head)
                   const length = Math.abs(head - anchor)
-                  cursorsRef.current.moveCursor(clientId.toString(), { index, length })
                   
-                  // Track who is actively typing
+                  // Move cursor to position
+                  cursorsRef.current.moveCursor(cursorId, { index, length })
+                  
+                  // Show the flag briefly when cursor moves
+                  cursorsRef.current.toggleFlag(cursorId, true)
+                  
+                  // Track who is actively typing (cursor at single position)
                   if (length === 0) {
-                    typing.push(collaborator)
+                    typing.push(remoteUser)
                   }
                 }
               }
             } catch (e) {
-              console.log('Cursor handling:', e)
+              // Cursor handling errors are usually harmless
             }
           }
         }
+      })
+      
+      // Remove cursors for users who left
+      existingCursorIds.forEach(id => {
+        try {
+          cursorsRef.current?.removeCursor(id)
+        } catch (e) {}
       })
       
       setCollaborators(users)
       setTypingUsers(typing)
     }
 
-    // Update on awareness changes
+    // Update on awareness changes (user joins/leaves, cursor moves)
     provider.awareness.on('change', updateCollaborators)
     
-    // Also update cursors on text changes for smooth movement
+    // Broadcast cursor position on selection change
     quill.on('selection-change', (range, oldRange, source) => {
-      if (range && source === 'user') {
-        // Broadcast our cursor position
+      if (range) {
+        // Broadcast cursor position to other users
         provider.awareness.setLocalStateField('cursor', {
           anchor: range.index,
           head: range.index + range.length
@@ -367,7 +429,12 @@ export default function EditorProV2() {
     fetchDocument()
     fetchVersions()
 
+    // Cleanup on unmount
     return () => {
+      // Release color when leaving
+      if (sessionColor.index !== undefined) {
+        releaseSessionColor(sessionColor.index)
+      }
       provider.disconnect()
       ydoc.destroy()
       if (autoSaveTimerRef.current) {
@@ -888,39 +955,71 @@ export default function EditorProV2() {
             <MessageSquare className="w-5 h-5 text-gray-600" />
           </button>
 
-          {/* Collaborators */}
+          {/* Collaborators - Google Docs style with color-matched borders */}
           {collaborators.length > 0 && (
             <div className="flex -space-x-2 mr-2 relative group">
               {collaborators.slice(0, 3).map((collab, i) => (
                 <div
-                  key={i}
-                  className="w-8 h-8 rounded-full border-2 border-white flex items-center justify-center text-white text-sm font-medium relative cursor-pointer transition-transform hover:scale-110 hover:z-10"
-                  style={{ backgroundColor: collab.color }}
-                  title={`${collab.name} (${connected ? 'Editing' : 'Offline'})`}
+                  key={collab.clientId || i}
+                  className="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-medium relative cursor-pointer transition-transform hover:scale-110 hover:z-10"
+                  style={{ 
+                    backgroundColor: '#fff',
+                    border: `3px solid ${collab.color}`,  // Color-matched border like Google Docs
+                    color: collab.color
+                  }}
+                  title={`${collab.name} (${collab.colorName || 'Active'})`}
                 >
-                  {collab.name?.charAt(0).toUpperCase() || '?'}
-                  {/* Online indicator */}
-                  <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-green-500 border-2 border-white rounded-full" />
+                  {collab.photoURL ? (
+                    <img 
+                      src={collab.photoURL} 
+                      alt={collab.name} 
+                      className="w-full h-full rounded-full object-cover"
+                    />
+                  ) : (
+                    <span style={{ color: collab.color, fontWeight: 600 }}>
+                      {collab.name?.charAt(0).toUpperCase() || '?'}
+                    </span>
+                  )}
+                  {/* Online indicator - matches cursor color */}
+                  <span 
+                    className="absolute -bottom-0.5 -right-0.5 w-3 h-3 border-2 border-white rounded-full"
+                    style={{ backgroundColor: collab.color }}
+                  />
                 </div>
               ))}
               {collaborators.length > 3 && (
-                <div className="w-8 h-8 rounded-full border-2 border-white bg-gray-400 flex items-center justify-center text-white text-xs">
+                <div className="w-9 h-9 rounded-full border-2 border-gray-300 bg-white flex items-center justify-center text-gray-600 text-xs font-medium">
                   +{collaborators.length - 3}
                 </div>
               )}
-              {/* Tooltip showing all collaborators */}
-              <div className="absolute top-full mt-2 right-0 bg-white shadow-lg rounded-lg border p-3 hidden group-hover:block z-50 min-w-48">
-                <div className="text-xs text-gray-500 mb-2">Currently editing:</div>
+              {/* Hover tooltip showing all collaborators with their colors */}
+              <div className="absolute top-full mt-2 right-0 bg-white shadow-xl rounded-lg border p-3 hidden group-hover:block z-50 min-w-56">
+                <div className="text-xs text-gray-500 mb-2 font-medium">People in this document:</div>
                 {collaborators.map((collab, i) => (
-                  <div key={i} className="flex items-center gap-2 py-1">
+                  <div key={collab.clientId || i} className="flex items-center gap-3 py-1.5 hover:bg-gray-50 rounded px-1">
                     <div 
-                      className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-medium"
-                      style={{ backgroundColor: collab.color }}
+                      className="w-7 h-7 rounded-full flex items-center justify-center text-sm font-medium flex-shrink-0"
+                      style={{ 
+                        backgroundColor: '#fff',
+                        border: `2px solid ${collab.color}`,
+                        color: collab.color
+                      }}
                     >
-                      {collab.name?.charAt(0).toUpperCase() || '?'}
+                      {collab.photoURL ? (
+                        <img src={collab.photoURL} alt="" className="w-full h-full rounded-full" />
+                      ) : (
+                        collab.name?.charAt(0).toUpperCase() || '?'
+                      )}
                     </div>
-                    <span className="text-sm text-gray-700">{collab.name}</span>
-                    <span className="text-xs text-green-500">● Active</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm text-gray-800 font-medium truncate">{collab.name}</div>
+                      <div className="text-xs text-gray-500">{collab.email || 'Active now'}</div>
+                    </div>
+                    <div 
+                      className="w-2 h-2 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: collab.color }}
+                      title={`Cursor: ${collab.colorName || collab.color}`}
+                    />
                   </div>
                 ))}
               </div>
@@ -936,12 +1035,22 @@ export default function EditorProV2() {
             Share
           </button>
 
-          {/* User Avatar */}
+          {/* My Avatar - with my session color border */}
           <div 
-            className="w-9 h-9 rounded-full flex items-center justify-center text-white font-medium"
-            style={{ backgroundColor: user?.color || '#4285f4' }}
+            className="w-9 h-9 rounded-full flex items-center justify-center font-medium cursor-pointer hover:ring-2 hover:ring-offset-2"
+            style={{ 
+              backgroundColor: '#fff',
+              border: `3px solid ${mySessionColor?.primary || '#4285f4'}`,
+              color: mySessionColor?.primary || '#4285f4',
+              '--tw-ring-color': mySessionColor?.primary || '#4285f4'
+            }}
+            title={`You (${mySessionColor?.name || 'Your'} cursor)`}
           >
-            {user?.name?.charAt(0).toUpperCase() || 'U'}
+            {user?.photoURL ? (
+              <img src={user.photoURL} alt={user.name} className="w-full h-full rounded-full object-cover" />
+            ) : (
+              <span style={{ fontWeight: 600 }}>{user?.name?.charAt(0).toUpperCase() || 'U'}</span>
+            )}
           </div>
         </div>
 

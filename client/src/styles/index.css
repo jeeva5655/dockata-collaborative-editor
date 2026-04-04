@@ -374,6 +374,7 @@ body {
 
 /* ===========================================
    COLLABORATIVE CURSOR STYLES - Google Docs Style
+   Real-time cursor + selection highlighting
    =========================================== */
 
 /* Base cursor container */
@@ -386,23 +387,22 @@ body {
 /* Cursor caret container */
 .ql-cursor-caret-container {
   position: absolute;
-  width: 3px;
+  width: 2px;
   height: 100%;
 }
 
-/* Cursor caret (the blinking line) */
+/* Cursor caret (the blinking line) - Google Docs style */
 .ql-cursor-caret {
   position: absolute;
-  width: 3px !important;
+  width: 2px !important;
   height: 100%;
-  border-radius: 2px;
-  animation: cursorBlink 1s ease-in-out infinite;
-  box-shadow: 0 0 4px rgba(0,0,0,0.3);
+  border-radius: 1px;
+  animation: cursorBlink 1.2s ease-in-out infinite;
 }
 
 @keyframes cursorBlink {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.7; }
+  0%, 40%, 100% { opacity: 1; }
+  50%, 90% { opacity: 0.4; }
 }
 
 /* Cursor flag (name label) - Google Docs style */
@@ -410,30 +410,45 @@ body {
   position: absolute !important;
   top: 0;
   left: 0;
-  transform: translateY(-100%) translateX(-1px);
-  padding: 3px 8px 3px 6px;
+  transform: translateY(-100%);
+  padding: 2px 6px;
   font-size: 11px;
-  font-weight: 600;
-  font-family: 'Google Sans', 'Segoe UI', -apple-system, sans-serif;
+  font-weight: 500;
+  font-family: 'Google Sans', 'Roboto', -apple-system, sans-serif;
   white-space: nowrap;
   color: white !important;
-  border-radius: 4px 4px 4px 0;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+  border-radius: 2px 2px 2px 0;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
   z-index: 10000 !important;
-  line-height: 1.4;
-  letter-spacing: 0.02em;
+  line-height: 1.3;
+  letter-spacing: 0.01em;
+  /* Hover effect */
+  transition: opacity 0.15s ease;
+}
+
+/* Show flag on cursor hover */
+.ql-cursor:hover .ql-cursor-flag {
+  opacity: 1 !important;
 }
 
 /* The name text inside the flag */
 .ql-cursor-name {
   color: white !important;
-  font-weight: 600;
+  font-weight: 500;
 }
 
-/* Selection highlight - colored background when text is selected */
+/* Color indicator dot (optional) */
+.ql-cursor-color-indicator {
+  display: none;
+}
+
+/* Selection highlight - CRITICAL for Google Docs style */
+/* This shows colored background when remote user selects text */
 .ql-cursor-selection-block {
-  opacity: 0.3 !important;
-  border-radius: 2px;
+  opacity: 0.35 !important;
+  border-radius: 1px;
+  /* Smooth transition when selection changes */
+  transition: all 0.1s ease;
 }
 
 /* Quill Cursors container */
@@ -448,9 +463,10 @@ body {
   overflow: visible !important;
 }
 
-/* Make sure cursors appear above editor content */
+/* Ensure cursors appear above editor content */
 .ql-container {
   position: relative;
+  overflow: visible !important;
 }
 
 .ql-editor {
