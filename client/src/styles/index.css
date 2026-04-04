@@ -372,52 +372,97 @@ body {
   fill: var(--accent-primary);
 }
 
-/* Remote cursor styles */
+/* ===========================================
+   COLLABORATIVE CURSOR STYLES - Google Docs Style
+   =========================================== */
+
+/* Base cursor container */
 .ql-cursor {
   position: absolute;
   pointer-events: none;
   z-index: 999;
+  transition: opacity 0.3s ease;
 }
 
+/* Cursor caret (the blinking line) */
 .ql-cursor-caret {
-  width: 2px;
-  animation: cursorBlink 1s ease-in-out infinite;
+  width: 2.5px;
+  border-radius: 1px;
+  animation: cursorPulse 1.2s ease-in-out infinite;
 }
 
+@keyframes cursorPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+/* Cursor name label */
 .ql-cursor-name {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
-  padding: 2px 6px;
+  padding: 3px 8px;
   border-radius: 4px;
   white-space: nowrap;
   transform: translateY(-100%);
+  letter-spacing: 0.02em;
+  text-shadow: 0 1px 1px rgba(0,0,0,0.1);
 }
 
-/* Enhanced cursor styles for collaboration - Google Docs style */
+/* Enhanced cursor flag - Google Docs style with arrow */
 .ql-cursor-flag {
   position: absolute;
-  top: -20px;
-  left: -1px;
-  font-size: 11px;
+  top: -24px;
+  left: 0;
+  font-size: 12px;
   font-weight: 600;
-  padding: 2px 8px;
+  padding: 4px 10px;
   border-radius: 4px 4px 4px 0;
   white-space: nowrap;
   color: white !important;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15), 0 1px 3px rgba(0,0,0,0.1);
   z-index: 1000;
+  font-family: 'Google Sans', 'Segoe UI', Roboto, sans-serif;
+  letter-spacing: 0.01em;
+  animation: cursorFlagAppear 0.2s ease-out;
+}
+
+@keyframes cursorFlagAppear {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Arrow pointer on the flag - connects flag to caret */
+.ql-cursor-flag::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: -6px;
+  width: 0;
+  height: 0;
+  border-left: 6px solid currentColor;
+  border-right: 6px solid transparent;
+  border-top: 6px solid currentColor;
+  border-bottom: 6px solid transparent;
 }
 
 .ql-cursor-caret-container {
   position: absolute;
-  width: 2px;
+  width: 2.5px;
 }
 
+/* Selection highlight - more visible */
 .ql-cursor-selection {
-  opacity: 0.3;
+  opacity: 0.25;
+  border-radius: 2px;
 }
 
-/* Quill Cursors module override for better styling */
+/* Quill Cursors module container */
 .ql-cursors {
   position: absolute;
   left: 0;
@@ -426,6 +471,7 @@ body {
   height: 100%;
   pointer-events: none;
   z-index: 9999;
+  overflow: visible;
 }
 
 .ql-cursors .ql-cursor {
@@ -435,20 +481,101 @@ body {
 
 .ql-cursors .ql-cursor .ql-cursor-caret {
   position: absolute;
-  width: 2px;
+  width: 2.5px;
+  box-shadow: 0 0 4px rgba(0,0,0,0.2);
 }
 
-.ql-cursors .ql-cursor .ql-cursor-name {
+.ql-cursors .ql-cursor .ql-cursor-flag {
   position: absolute;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
-  padding: 3px 8px;
+  padding: 4px 10px;
   border-radius: 4px 4px 4px 0;
   white-space: nowrap;
   color: white !important;
-  transform: translateY(-100%) translateX(-1px);
-  margin-top: -2px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  transform: translateY(-100%) translateX(0);
+  margin-top: -4px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  font-family: 'Google Sans', 'Segoe UI', Roboto, sans-serif;
+}
+
+/* Typing indicator animation */
+.typing-cursor::before {
+  content: '';
+  position: absolute;
+  left: -4px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 8px;
+  height: 8px;
+  background: currentColor;
+  border-radius: 50%;
+  animation: typingDot 0.6s ease-in-out infinite;
+}
+
+@keyframes typingDot {
+  0%, 100% { transform: translateY(-50%) scale(1); }
+  50% { transform: translateY(-50%) scale(1.2); }
+}
+
+/* ===========================================
+   FIND & REPLACE HIGHLIGHT
+   =========================================== */
+.search-highlight {
+  background-color: #ffeb3b !important;
+  color: #000 !important;
+}
+
+.search-highlight-current {
+  background-color: #ff9800 !important;
+  color: #fff !important;
+}
+
+/* ===========================================
+   COMMENTS SIDEBAR STYLES
+   =========================================== */
+.comment-marker {
+  background-color: #fff3cd;
+  border-bottom: 2px solid #ffc107;
+  cursor: pointer;
+}
+
+.comment-marker:hover {
+  background-color: #ffe69c;
+}
+
+/* ===========================================
+   TRACK CHANGES STYLES
+   =========================================== */
+.track-insert {
+  background-color: #d4edda;
+  color: #155724;
+  text-decoration: none;
+}
+
+.track-delete {
+  background-color: #f8d7da;
+  color: #721c24;
+  text-decoration: line-through;
+}
+
+/* ===========================================
+   PLUGIN PANEL STYLES
+   =========================================== */
+.plugin-panel {
+  @apply fixed right-16 top-24 w-72 bg-white rounded-lg shadow-2xl border border-gray-200 z-40;
+  animation: slideIn 0.2s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 /* Button styles */

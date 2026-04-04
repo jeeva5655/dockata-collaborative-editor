@@ -33,20 +33,39 @@ const Size = Quill.import('attributors/style/size')
 Size.whitelist = ['10px', '12px', '14px', '16px', '18px', '20px', '24px', '28px', '32px', '36px', '48px', '72px']
 Quill.register(Size, true)
 
-// Unique colors for different collaborators
+// Enhanced collaborator colors - high contrast, accessible, distinct
+// Based on color science for maximum differentiation (color blindness friendly)
 const collaboratorColors = [
-  '#E91E63', '#9C27B0', '#673AB7', '#3F51B5', '#2196F3',
-  '#00BCD4', '#009688', '#4CAF50', '#8BC34A', '#FF9800',
-  '#FF5722', '#795548', '#607D8B', '#F44336', '#00ACC1'
+  { primary: '#0B5394', light: '#C9DAF8', name: 'Blue' },      // Google Blue
+  { primary: '#38761D', light: '#D9EAD3', name: 'Green' },     // Forest Green
+  { primary: '#9900FF', light: '#E4D7F5', name: 'Purple' },    // Vibrant Purple
+  { primary: '#E06666', light: '#F4CCCC', name: 'Red' },       // Soft Red
+  { primary: '#F6B26B', light: '#FCE5CD', name: 'Orange' },    // Warm Orange
+  { primary: '#6FA8DC', light: '#CFE2F3', name: 'Sky' },       // Sky Blue
+  { primary: '#93C47D', light: '#D9EAD3', name: 'Mint' },      // Mint Green
+  { primary: '#8E7CC3', light: '#D9D2E9', name: 'Lavender' },  // Lavender
+  { primary: '#E69138', light: '#FCE5CD', name: 'Tangerine' }, // Tangerine
+  { primary: '#A64D79', light: '#EAD1DC', name: 'Magenta' },   // Magenta
+  { primary: '#45818E', light: '#D0E0E3', name: 'Teal' },      // Teal
+  { primary: '#CC0000', light: '#F4CCCC', name: 'Crimson' },   // Crimson
+  { primary: '#674EA7', light: '#D9D2E9', name: 'Indigo' },    // Indigo
+  { primary: '#3D85C6', light: '#C9DAF8', name: 'Cobalt' },    // Cobalt
+  { primary: '#76A5AF', light: '#D0E0E3', name: 'Cyan' },      // Cyan
+  { primary: '#E91E63', light: '#FCE4EC', name: 'Pink' },      // Pink
 ]
 
-// Get color for user based on their ID/name
-const getUserColor = (userId) => {
+// Get color palette for user based on their ID/name
+const getUserColorPalette = (userId) => {
   let hash = 0
   for (let i = 0; i < userId.length; i++) {
     hash = userId.charCodeAt(i) + ((hash << 5) - hash)
   }
   return collaboratorColors[Math.abs(hash) % collaboratorColors.length]
+}
+
+// Legacy function for backwards compatibility
+const getUserColor = (userId) => {
+  return getUserColorPalette(userId).primary
 }
 
 // AI Writing Prompts (Free - using local generation)
@@ -66,14 +85,33 @@ const aiPrompts = {
   ]
 }
 
-// Sidebar Plugins
+// Sidebar Plugins - Microsoft/Google style add-ins
 const sidePlugins = [
-  { id: 'calendar', name: 'Calendar', icon: Calendar, color: '#4285f4' },
-  { id: 'tasks', name: 'Tasks', icon: CheckSquare, color: '#4285f4' },
-  { id: 'contacts', name: 'Contacts', icon: User, color: '#4285f4' },
-  { id: 'maps', name: 'Maps', icon: MapPin, color: '#34a853' },
-  { id: 'figma', name: 'Figma', icon: Figma, color: '#a259ff' }
+  { id: 'calendar', name: 'Calendar', icon: Calendar, color: '#4285f4', description: 'Insert meeting dates' },
+  { id: 'tasks', name: 'Tasks', icon: CheckSquare, color: '#4285f4', description: 'Track your tasks' },
+  { id: 'contacts', name: 'Contacts', icon: User, color: '#4285f4', description: 'Find contacts' },
+  { id: 'maps', name: 'Maps', icon: MapPin, color: '#34a853', description: 'Insert location' },
+  { id: 'figma', name: 'Figma', icon: Figma, color: '#a259ff', description: 'Import designs' },
+  { id: 'comments', name: 'Comments', icon: MessageSquare, color: '#fbbc05', description: 'View comments' },
+  { id: 'dictionary', name: 'Dictionary', icon: Search, color: '#ea4335', description: 'Look up words' },
 ]
+
+// Track Changes Types
+const CHANGE_TYPES = {
+  INSERT: 'insert',
+  DELETE: 'delete',
+  FORMAT: 'format'
+}
+
+// Find & Replace state
+const initialFindReplaceState = {
+  findText: '',
+  replaceText: '',
+  matchCase: false,
+  wholeWord: false,
+  results: [],
+  currentIndex: -1
+}
 
 export default function EditorProV2() {
   const { docId } = useParams()
@@ -102,6 +140,39 @@ export default function EditorProV2() {
   const [showSidebar, setShowSidebar] = useState(true)
   const [showPlugins, setShowPlugins] = useState(false)
   const [activePlugin, setActivePlugin] = useState(null)
+  
+  // Find & Replace
+  const [showFindReplace, setShowFindReplace] = useState(false)
+  const [findReplace, setFindReplace] = useState(initialFindReplaceState)
+  
+  // Comments
+  const [comments, setComments] = useState([])
+  const [showComments, setShowComments] = useState(false)
+  const [newComment, setNewComment] = useState('')
+  const [selectedText, setSelectedText] = useState(null)
+  
+  // Track Changes
+  const [trackChanges, setTrackChanges] = useState(false)
+  const [changes, setChanges] = useState([])
+  
+  // Active collaborator typing indicator
+  const [typingUsers, setTypingUsers] = useState([])
+  
+  // Plugin panels
+  const [pluginPanelOpen, setPluginPanelOpen] = useState(false)
+  
+  // Tasks for the tasks plugin
+  const [tasks, setTasks] = useState([
+    { id: 1, text: 'Review document', done: false },
+    { id: 2, text: 'Add introduction', done: true },
+    { id: 3, text: 'Format headings', done: false },
+  ])
+  
+  // Calendar events
+  const [calendarEvents, setCalendarEvents] = useState([
+    { id: 1, title: 'Team Meeting', date: new Date(), time: '10:00 AM' },
+    { id: 2, title: 'Document Review', date: new Date(Date.now() + 86400000), time: '2:00 PM' },
+  ])
   
   // Version History
   const [showVersionHistory, setShowVersionHistory] = useState(false)
@@ -424,6 +495,180 @@ export default function EditorProV2() {
     setSaving(false)
   }
 
+  // Find & Replace functions
+  const handleFind = (text, matchCase = false, wholeWord = false) => {
+    if (!quillRef.current || !text) {
+      setFindReplace(prev => ({ ...prev, results: [], currentIndex: -1 }))
+      return
+    }
+
+    const editorText = quillRef.current.getText()
+    const results = []
+    let searchText = text
+    let contentText = editorText
+
+    if (!matchCase) {
+      searchText = searchText.toLowerCase()
+      contentText = contentText.toLowerCase()
+    }
+
+    let index = contentText.indexOf(searchText)
+    while (index !== -1) {
+      if (wholeWord) {
+        const before = index === 0 || /\s/.test(contentText[index - 1])
+        const after = index + searchText.length >= contentText.length || /\s/.test(contentText[index + searchText.length])
+        if (before && after) {
+          results.push(index)
+        }
+      } else {
+        results.push(index)
+      }
+      index = contentText.indexOf(searchText, index + 1)
+    }
+
+    setFindReplace(prev => ({ ...prev, results, currentIndex: results.length > 0 ? 0 : -1 }))
+    
+    // Highlight first result
+    if (results.length > 0) {
+      quillRef.current.setSelection(results[0], text.length)
+    }
+  }
+
+  const findNext = () => {
+    const { results, currentIndex, findText } = findReplace
+    if (results.length === 0) return
+    
+    const nextIndex = (currentIndex + 1) % results.length
+    setFindReplace(prev => ({ ...prev, currentIndex: nextIndex }))
+    quillRef.current.setSelection(results[nextIndex], findText.length)
+  }
+
+  const findPrevious = () => {
+    const { results, currentIndex, findText } = findReplace
+    if (results.length === 0) return
+    
+    const prevIndex = currentIndex <= 0 ? results.length - 1 : currentIndex - 1
+    setFindReplace(prev => ({ ...prev, currentIndex: prevIndex }))
+    quillRef.current.setSelection(results[prevIndex], findText.length)
+  }
+
+  const replaceCurrent = () => {
+    const { results, currentIndex, findText, replaceText } = findReplace
+    if (results.length === 0 || currentIndex < 0) return
+
+    quillRef.current.deleteText(results[currentIndex], findText.length)
+    quillRef.current.insertText(results[currentIndex], replaceText)
+    handleFind(findText, findReplace.matchCase, findReplace.wholeWord)
+  }
+
+  const replaceAll = () => {
+    const { findText, replaceText, matchCase, wholeWord } = findReplace
+    if (!findText) return
+
+    let content = quillRef.current.getText()
+    const regex = new RegExp(
+      wholeWord ? `\\b${findText}\\b` : findText,
+      matchCase ? 'g' : 'gi'
+    )
+    content = content.replace(regex, replaceText)
+    
+    const selection = quillRef.current.getSelection()
+    quillRef.current.setText(content)
+    if (selection) quillRef.current.setSelection(selection.index, 0)
+    
+    setFindReplace(prev => ({ ...prev, results: [], currentIndex: -1 }))
+  }
+
+  // Add comment
+  const addComment = () => {
+    if (!newComment.trim() || !selectedText) return
+    
+    const comment = {
+      id: Date.now(),
+      text: newComment,
+      selectedText: selectedText.text,
+      range: selectedText.range,
+      author: user?.name || 'Anonymous',
+      authorColor: getUserColor(user?.uid || user?.name || 'anonymous'),
+      timestamp: new Date(),
+      resolved: false,
+      replies: []
+    }
+    
+    setComments(prev => [...prev, comment])
+    setNewComment('')
+    setSelectedText(null)
+  }
+
+  // Resolve comment
+  const resolveComment = (commentId) => {
+    setComments(prev => prev.map(c => 
+      c.id === commentId ? { ...c, resolved: true } : c
+    ))
+  }
+
+  // Delete comment
+  const deleteComment = (commentId) => {
+    setComments(prev => prev.filter(c => c.id !== commentId))
+  }
+
+  // Toggle task
+  const toggleTask = (taskId) => {
+    setTasks(prev => prev.map(t =>
+      t.id === taskId ? { ...t, done: !t.done } : t
+    ))
+  }
+
+  // Add task
+  const addTask = (text) => {
+    if (!text.trim()) return
+    setTasks(prev => [...prev, { id: Date.now(), text, done: false }])
+  }
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.ctrlKey || e.metaKey) {
+        switch (e.key.toLowerCase()) {
+          case 's':
+            e.preventDefault()
+            manualSave()
+            break
+          case 'f':
+            e.preventDefault()
+            setShowFindReplace(true)
+            break
+          case 'h':
+            if (e.shiftKey) {
+              e.preventDefault()
+              setShowFindReplace(true)
+            }
+            break
+        }
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [])
+
+  // Track selection for comments
+  useEffect(() => {
+    if (!quillRef.current) return
+    
+    const handleSelectionChange = (range) => {
+      if (range && range.length > 0) {
+        const text = quillRef.current.getText(range.index, range.length)
+        setSelectedText({ text, range })
+      }
+    }
+    
+    quillRef.current.on('selection-change', handleSelectionChange)
+    return () => {
+      quillRef.current?.off('selection-change', handleSelectionChange)
+    }
+  }, [quillRef.current])
+
   // Menus
   const menus = {
     file: [
@@ -439,27 +684,82 @@ export default function EditorProV2() {
       { label: 'Redo', shortcut: 'Ctrl+Y', action: () => quillRef.current?.history.redo() },
       { label: 'Cut', shortcut: 'Ctrl+X', action: () => document.execCommand('cut') },
       { label: 'Copy', shortcut: 'Ctrl+C', action: () => document.execCommand('copy') },
-      { label: 'Paste', shortcut: 'Ctrl+V', action: () => document.execCommand('paste') }
+      { label: 'Paste', shortcut: 'Ctrl+V', action: () => document.execCommand('paste') },
+      { divider: true },
+      { label: 'Find & Replace', shortcut: 'Ctrl+H', action: () => setShowFindReplace(true) }
     ],
     view: [
-      { label: 'Zoom In', action: () => setZoom(z => Math.min(200, z + 10)) },
-      { label: 'Zoom Out', action: () => setZoom(z => Math.max(50, z - 10)) },
-      { label: 'Reset Zoom', action: () => setZoom(100) }
+      { label: 'Zoom In', shortcut: 'Ctrl++', action: () => setZoom(z => Math.min(200, z + 10)) },
+      { label: 'Zoom Out', shortcut: 'Ctrl+-', action: () => setZoom(z => Math.max(50, z - 10)) },
+      { label: 'Reset Zoom', shortcut: 'Ctrl+0', action: () => setZoom(100) },
+      { divider: true },
+      { label: 'Show Comments', action: () => setShowComments(!showComments), checked: showComments },
+      { label: 'Track Changes', action: () => setTrackChanges(!trackChanges), checked: trackChanges }
     ],
     insert: [
       { label: 'Image', action: () => insertImage() },
       { label: 'Link', action: () => insertLink() },
-      { label: 'Table', action: () => {} }
+      { label: 'Table', action: () => insertTable() },
+      { divider: true },
+      { label: 'Comment', shortcut: 'Ctrl+Alt+M', action: () => { if (selectedText) setShowComments(true) } },
+      { label: 'Date', action: () => insertDate() }
     ],
     format: [
       { label: 'Bold', shortcut: 'Ctrl+B', action: () => quillRef.current?.format('bold', true) },
       { label: 'Italic', shortcut: 'Ctrl+I', action: () => quillRef.current?.format('italic', true) },
-      { label: 'Underline', shortcut: 'Ctrl+U', action: () => quillRef.current?.format('underline', true) }
+      { label: 'Underline', shortcut: 'Ctrl+U', action: () => quillRef.current?.format('underline', true) },
+      { label: 'Strikethrough', action: () => quillRef.current?.format('strike', true) },
+      { divider: true },
+      { label: 'Clear Formatting', action: () => clearFormatting() }
     ],
     tools: [
       { label: 'Word Count', action: () => alert(`Words: ${wordCount.words}\nCharacters: ${wordCount.chars}`) },
-      { label: 'Spelling & Grammar', action: () => {} }
+      { label: 'Spelling & Grammar', action: () => {} },
+      { divider: true },
+      { label: 'Compare Documents', action: () => {} },
+      { label: 'Translate Document', action: () => {} }
     ]
+  }
+
+  // Insert functions
+  const insertImage = () => {
+    const url = prompt('Enter image URL:')
+    if (url) {
+      const range = quillRef.current?.getSelection() || { index: quillRef.current?.getLength() || 0 }
+      quillRef.current?.insertEmbed(range.index, 'image', url)
+    }
+  }
+
+  const insertLink = () => {
+    const url = prompt('Enter URL:')
+    if (url) {
+      const range = quillRef.current?.getSelection()
+      if (range && range.length > 0) {
+        quillRef.current?.format('link', url)
+      } else {
+        const text = prompt('Enter link text:') || url
+        quillRef.current?.insertText(range?.index || 0, text, { link: url })
+      }
+    }
+  }
+
+  const insertTable = () => {
+    const range = quillRef.current?.getSelection() || { index: quillRef.current?.getLength() || 0 }
+    const tableHtml = '<table style="border-collapse: collapse; width: 100%;"><tr><td style="border: 1px solid #ccc; padding: 8px;">Cell 1</td><td style="border: 1px solid #ccc; padding: 8px;">Cell 2</td></tr><tr><td style="border: 1px solid #ccc; padding: 8px;">Cell 3</td><td style="border: 1px solid #ccc; padding: 8px;">Cell 4</td></tr></table>'
+    quillRef.current?.clipboard.dangerouslyPasteHTML(range.index, tableHtml)
+  }
+
+  const insertDate = () => {
+    const range = quillRef.current?.getSelection() || { index: quillRef.current?.getLength() || 0 }
+    const dateStr = format(new Date(), 'MMMM d, yyyy')
+    quillRef.current?.insertText(range.index, dateStr)
+  }
+
+  const clearFormatting = () => {
+    const range = quillRef.current?.getSelection()
+    if (range) {
+      quillRef.current?.removeFormat(range.index, range.length)
+    }
   }
 
   const downloadAs = (format) => {
@@ -471,21 +771,6 @@ export default function EditorProV2() {
     a.href = url
     a.download = `${title}.${format}`
     a.click()
-  }
-
-  const insertImage = () => {
-    const url = prompt('Enter image URL:')
-    if (url) {
-      const range = quillRef.current?.getSelection()
-      quillRef.current?.insertEmbed(range?.index || 0, 'image', url)
-    }
-  }
-
-  const insertLink = () => {
-    const url = prompt('Enter URL:')
-    if (url) {
-      quillRef.current?.format('link', url)
-    }
   }
 
   return (
@@ -1060,13 +1345,516 @@ export default function EditorProV2() {
         /* Cursor label styling */
         .ql-cursor .ql-cursor-flag {
           background-color: inherit;
-          border-radius: 3px;
-          padding: 2px 6px;
-          font-size: 11px;
+          border-radius: 4px 4px 4px 0;
+          padding: 4px 10px;
+          font-size: 12px;
           white-space: nowrap;
           transform: translateY(-100%);
+          font-family: 'Google Sans', 'Segoe UI', sans-serif;
+          font-weight: 600;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+        
+        /* Selection highlighting */
+        .ql-cursor .ql-cursor-selection-block {
+          opacity: 0.25;
         }
       `}</style>
+
+      {/* Find & Replace Panel - Microsoft Word Style */}
+      {showFindReplace && (
+        <div className="fixed top-20 right-4 w-80 bg-white rounded-lg shadow-2xl border border-gray-200 z-50">
+          <div className="p-3 border-b border-gray-200 flex items-center justify-between">
+            <h3 className="font-medium text-sm">Find & Replace</h3>
+            <button 
+              onClick={() => setShowFindReplace(false)}
+              className="p-1 hover:bg-gray-100 rounded"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+          
+          <div className="p-4 space-y-3">
+            {/* Find Input */}
+            <div>
+              <label className="text-xs text-gray-500 mb-1 block">Find</label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={findReplace.findText}
+                  onChange={(e) => {
+                    setFindReplace(prev => ({ ...prev, findText: e.target.value }))
+                    handleFind(e.target.value, findReplace.matchCase, findReplace.wholeWord)
+                  }}
+                  placeholder="Enter text to find..."
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <span className="self-center text-xs text-gray-500">
+                  {findReplace.results.length > 0 
+                    ? `${findReplace.currentIndex + 1} of ${findReplace.results.length}`
+                    : '0 results'}
+                </span>
+              </div>
+            </div>
+
+            {/* Replace Input */}
+            <div>
+              <label className="text-xs text-gray-500 mb-1 block">Replace</label>
+              <input
+                type="text"
+                value={findReplace.replaceText}
+                onChange={(e) => setFindReplace(prev => ({ ...prev, replaceText: e.target.value }))}
+                placeholder="Replace with..."
+                className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+
+            {/* Options */}
+            <div className="flex gap-4">
+              <label className="flex items-center gap-1 text-xs">
+                <input
+                  type="checkbox"
+                  checked={findReplace.matchCase}
+                  onChange={(e) => {
+                    setFindReplace(prev => ({ ...prev, matchCase: e.target.checked }))
+                    handleFind(findReplace.findText, e.target.checked, findReplace.wholeWord)
+                  }}
+                  className="rounded"
+                />
+                Match case
+              </label>
+              <label className="flex items-center gap-1 text-xs">
+                <input
+                  type="checkbox"
+                  checked={findReplace.wholeWord}
+                  onChange={(e) => {
+                    setFindReplace(prev => ({ ...prev, wholeWord: e.target.checked }))
+                    handleFind(findReplace.findText, findReplace.matchCase, e.target.checked)
+                  }}
+                  className="rounded"
+                />
+                Whole word
+              </label>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex gap-2 pt-2">
+              <button
+                onClick={findPrevious}
+                disabled={findReplace.results.length === 0}
+                className="px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 rounded disabled:opacity-50"
+              >
+                ← Previous
+              </button>
+              <button
+                onClick={findNext}
+                disabled={findReplace.results.length === 0}
+                className="px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 rounded disabled:opacity-50"
+              >
+                Next →
+              </button>
+              <button
+                onClick={replaceCurrent}
+                disabled={findReplace.results.length === 0}
+                className="px-3 py-1.5 text-sm bg-blue-500 text-white hover:bg-blue-600 rounded disabled:opacity-50"
+              >
+                Replace
+              </button>
+              <button
+                onClick={replaceAll}
+                disabled={!findReplace.findText}
+                className="px-3 py-1.5 text-sm bg-blue-600 text-white hover:bg-blue-700 rounded disabled:opacity-50"
+              >
+                Replace All
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Comments Panel - Google Docs Style */}
+      {showComments && (
+        <div className="fixed top-20 right-16 w-72 bg-white rounded-lg shadow-2xl border border-gray-200 z-50 max-h-[70vh] flex flex-col">
+          <div className="p-3 border-b border-gray-200 flex items-center justify-between">
+            <h3 className="font-medium text-sm">Comments</h3>
+            <button 
+              onClick={() => setShowComments(false)}
+              className="p-1 hover:bg-gray-100 rounded"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+          
+          {/* Add Comment */}
+          {selectedText && (
+            <div className="p-3 border-b border-gray-100 bg-gray-50">
+              <div className="text-xs text-gray-500 mb-1">Selected: "{selectedText.text.substring(0, 30)}..."</div>
+              <textarea
+                value={newComment}
+                onChange={(e) => setNewComment(e.target.value)}
+                placeholder="Add a comment..."
+                className="w-full px-3 py-2 border border-gray-300 rounded text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+                rows={2}
+              />
+              <div className="flex gap-2 mt-2">
+                <button
+                  onClick={addComment}
+                  disabled={!newComment.trim()}
+                  className="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50"
+                >
+                  Comment
+                </button>
+                <button
+                  onClick={() => setSelectedText(null)}
+                  className="px-3 py-1 text-sm text-gray-600 hover:bg-gray-100 rounded"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+          
+          {/* Comments List */}
+          <div className="flex-1 overflow-auto">
+            {comments.filter(c => !c.resolved).length === 0 ? (
+              <div className="p-6 text-center text-gray-500 text-sm">
+                <MessageSquare className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                <p>No comments yet</p>
+                <p className="text-xs mt-1">Select text to add a comment</p>
+              </div>
+            ) : (
+              comments.filter(c => !c.resolved).map(comment => (
+                <div key={comment.id} className="p-3 border-b border-gray-100 hover:bg-gray-50">
+                  <div className="flex items-start gap-2">
+                    <div 
+                      className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-medium flex-shrink-0"
+                      style={{ backgroundColor: comment.authorColor }}
+                    >
+                      {comment.author.charAt(0).toUpperCase()}
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium text-sm">{comment.author}</span>
+                        <span className="text-xs text-gray-400">
+                          {formatDistanceToNow(new Date(comment.timestamp), { addSuffix: true })}
+                        </span>
+                      </div>
+                      <div className="text-xs text-gray-500 bg-yellow-50 px-1 rounded mt-0.5">
+                        "{comment.selectedText.substring(0, 40)}..."
+                      </div>
+                      <p className="text-sm mt-1">{comment.text}</p>
+                      <div className="flex gap-2 mt-2">
+                        <button
+                          onClick={() => resolveComment(comment.id)}
+                          className="text-xs text-green-600 hover:underline"
+                        >
+                          ✓ Resolve
+                        </button>
+                        <button
+                          onClick={() => deleteComment(comment.id)}
+                          className="text-xs text-red-500 hover:underline"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          {/* Resolved Comments */}
+          {comments.filter(c => c.resolved).length > 0 && (
+            <div className="border-t border-gray-200">
+              <div className="p-2 text-xs text-gray-500 font-medium">Resolved ({comments.filter(c => c.resolved).length})</div>
+              {comments.filter(c => c.resolved).map(comment => (
+                <div key={comment.id} className="p-2 text-xs text-gray-400 bg-gray-50">
+                  <span className="font-medium">{comment.author}</span>: {comment.text.substring(0, 30)}...
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Plugin Panels */}
+      {activePlugin && (
+        <div className="plugin-panel">
+          {/* Tasks Plugin */}
+          {activePlugin === 'tasks' && (
+            <>
+              <div className="p-3 border-b border-gray-200 flex items-center justify-between">
+                <h3 className="font-medium text-sm flex items-center gap-2">
+                  <CheckSquare className="w-4 h-4 text-blue-500" />
+                  Tasks
+                </h3>
+                <button onClick={() => setActivePlugin(null)} className="p-1 hover:bg-gray-100 rounded">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <div className="p-3">
+                <div className="flex gap-2 mb-3">
+                  <input
+                    type="text"
+                    placeholder="Add a task..."
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded text-sm"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && e.target.value) {
+                        addTask(e.target.value)
+                        e.target.value = ''
+                      }
+                    }}
+                  />
+                </div>
+                <div className="space-y-2">
+                  {tasks.map(task => (
+                    <div 
+                      key={task.id}
+                      className={`flex items-center gap-2 p-2 rounded hover:bg-gray-50 ${task.done ? 'opacity-60' : ''}`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={task.done}
+                        onChange={() => toggleTask(task.id)}
+                        className="rounded"
+                      />
+                      <span className={`text-sm flex-1 ${task.done ? 'line-through text-gray-400' : ''}`}>
+                        {task.text}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* Calendar Plugin */}
+          {activePlugin === 'calendar' && (
+            <>
+              <div className="p-3 border-b border-gray-200 flex items-center justify-between">
+                <h3 className="font-medium text-sm flex items-center gap-2">
+                  <Calendar className="w-4 h-4 text-blue-500" />
+                  Calendar
+                </h3>
+                <button onClick={() => setActivePlugin(null)} className="p-1 hover:bg-gray-100 rounded">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <div className="p-3">
+                <div className="text-xs text-gray-500 mb-2">Upcoming Events</div>
+                <div className="space-y-2">
+                  {calendarEvents.map(event => (
+                    <div 
+                      key={event.id}
+                      className="p-2 bg-blue-50 rounded border-l-4 border-blue-500 cursor-pointer hover:bg-blue-100"
+                      onClick={() => {
+                        const text = `📅 ${event.title} - ${format(event.date, 'MMM d, yyyy')} at ${event.time}`
+                        const range = quillRef.current?.getSelection() || { index: quillRef.current?.getLength() || 0 }
+                        quillRef.current?.insertText(range.index, text + '\n')
+                      }}
+                    >
+                      <div className="font-medium text-sm">{event.title}</div>
+                      <div className="text-xs text-gray-600">
+                        {format(event.date, 'MMM d, yyyy')} • {event.time}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <button className="w-full mt-3 px-3 py-2 text-sm text-blue-600 hover:bg-blue-50 rounded border border-blue-200">
+                  + Add Event
+                </button>
+              </div>
+            </>
+          )}
+
+          {/* Contacts Plugin */}
+          {activePlugin === 'contacts' && (
+            <>
+              <div className="p-3 border-b border-gray-200 flex items-center justify-between">
+                <h3 className="font-medium text-sm flex items-center gap-2">
+                  <User className="w-4 h-4 text-blue-500" />
+                  Contacts
+                </h3>
+                <button onClick={() => setActivePlugin(null)} className="p-1 hover:bg-gray-100 rounded">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <div className="p-3">
+                <input
+                  type="text"
+                  placeholder="Search contacts..."
+                  className="w-full px-3 py-2 border border-gray-300 rounded text-sm mb-3"
+                />
+                <div className="space-y-2">
+                  {collaborators.map((collab, i) => (
+                    <div 
+                      key={i}
+                      className="flex items-center gap-2 p-2 hover:bg-gray-50 rounded cursor-pointer"
+                      onClick={() => {
+                        const range = quillRef.current?.getSelection() || { index: quillRef.current?.getLength() || 0 }
+                        quillRef.current?.insertText(range.index, `@${collab.name} `)
+                      }}
+                    >
+                      <div 
+                        className="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm"
+                        style={{ backgroundColor: collab.color }}
+                      >
+                        {collab.name?.charAt(0).toUpperCase() || '?'}
+                      </div>
+                      <div>
+                        <div className="text-sm font-medium">{collab.name}</div>
+                        <div className="text-xs text-green-500">● Online</div>
+                      </div>
+                    </div>
+                  ))}
+                  {collaborators.length === 0 && (
+                    <div className="text-center text-gray-500 text-sm py-4">
+                      No collaborators online
+                    </div>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* Dictionary Plugin */}
+          {activePlugin === 'dictionary' && (
+            <>
+              <div className="p-3 border-b border-gray-200 flex items-center justify-between">
+                <h3 className="font-medium text-sm flex items-center gap-2">
+                  <Search className="w-4 h-4 text-red-500" />
+                  Dictionary
+                </h3>
+                <button onClick={() => setActivePlugin(null)} className="p-1 hover:bg-gray-100 rounded">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <div className="p-3">
+                <input
+                  type="text"
+                  placeholder="Look up a word..."
+                  className="w-full px-3 py-2 border border-gray-300 rounded text-sm"
+                />
+                {selectedText && (
+                  <div className="mt-3 p-3 bg-gray-50 rounded">
+                    <div className="font-medium text-sm mb-1">Selected: "{selectedText.text}"</div>
+                    <div className="text-xs text-gray-500">
+                      Select a word in your document to look up its definition.
+                    </div>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+
+          {/* Comments Plugin */}
+          {activePlugin === 'comments' && (
+            <>
+              <div className="p-3 border-b border-gray-200 flex items-center justify-between">
+                <h3 className="font-medium text-sm flex items-center gap-2">
+                  <MessageSquare className="w-4 h-4 text-yellow-500" />
+                  Comments
+                </h3>
+                <button onClick={() => setActivePlugin(null)} className="p-1 hover:bg-gray-100 rounded">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <div className="p-3">
+                <div className="text-center text-gray-500 text-sm py-4">
+                  <MessageSquare className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                  <p>{comments.length} comment{comments.length !== 1 ? 's' : ''}</p>
+                  <button 
+                    onClick={() => setShowComments(true)}
+                    className="mt-2 text-blue-500 hover:underline"
+                  >
+                    View all comments
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* Maps Plugin */}
+          {activePlugin === 'maps' && (
+            <>
+              <div className="p-3 border-b border-gray-200 flex items-center justify-between">
+                <h3 className="font-medium text-sm flex items-center gap-2">
+                  <MapPin className="w-4 h-4 text-green-500" />
+                  Maps
+                </h3>
+                <button onClick={() => setActivePlugin(null)} className="p-1 hover:bg-gray-100 rounded">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <div className="p-3">
+                <input
+                  type="text"
+                  placeholder="Search for a location..."
+                  className="w-full px-3 py-2 border border-gray-300 rounded text-sm"
+                />
+                <div className="mt-3 text-center text-gray-500 text-sm">
+                  <MapPin className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                  <p>Search for a location to insert it into your document</p>
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* Figma Plugin */}
+          {activePlugin === 'figma' && (
+            <>
+              <div className="p-3 border-b border-gray-200 flex items-center justify-between">
+                <h3 className="font-medium text-sm flex items-center gap-2">
+                  <Figma className="w-4 h-4" style={{ color: '#a259ff' }} />
+                  Figma
+                </h3>
+                <button onClick={() => setActivePlugin(null)} className="p-1 hover:bg-gray-100 rounded">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <div className="p-3">
+                <input
+                  type="text"
+                  placeholder="Paste Figma link..."
+                  className="w-full px-3 py-2 border border-gray-300 rounded text-sm"
+                />
+                <div className="mt-3 text-center text-gray-500 text-sm">
+                  <Figma className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                  <p>Embed Figma designs directly into your document</p>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Typing Indicator - Who is typing */}
+      {typingUsers.length > 0 && (
+        <div className="fixed bottom-16 left-1/2 transform -translate-x-1/2 bg-white shadow-lg rounded-full px-4 py-2 flex items-center gap-2 z-50">
+          <div className="flex -space-x-1">
+            {typingUsers.slice(0, 3).map((user, i) => (
+              <div
+                key={i}
+                className="w-6 h-6 rounded-full border-2 border-white flex items-center justify-center text-white text-xs"
+                style={{ backgroundColor: user.color }}
+              >
+                {user.name?.charAt(0).toUpperCase()}
+              </div>
+            ))}
+          </div>
+          <span className="text-sm text-gray-600">
+            {typingUsers.length === 1 
+              ? `${typingUsers[0].name} is typing...`
+              : `${typingUsers.length} people are typing...`}
+          </span>
+          <div className="typing-indicator">
+            <span></span>
+            <span></span>
+            <span></span>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
