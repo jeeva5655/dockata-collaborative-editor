@@ -376,6 +376,7 @@ body {
 .ql-cursor {
   position: absolute;
   pointer-events: none;
+  z-index: 999;
 }
 
 .ql-cursor-caret {
@@ -390,6 +391,64 @@ body {
   border-radius: 4px;
   white-space: nowrap;
   transform: translateY(-100%);
+}
+
+/* Enhanced cursor styles for collaboration - Google Docs style */
+.ql-cursor-flag {
+  position: absolute;
+  top: -20px;
+  left: -1px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 4px 4px 4px 0;
+  white-space: nowrap;
+  color: white !important;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  z-index: 1000;
+}
+
+.ql-cursor-caret-container {
+  position: absolute;
+  width: 2px;
+}
+
+.ql-cursor-selection {
+  opacity: 0.3;
+}
+
+/* Quill Cursors module override for better styling */
+.ql-cursors {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 9999;
+}
+
+.ql-cursors .ql-cursor {
+  position: absolute;
+  pointer-events: none;
+}
+
+.ql-cursors .ql-cursor .ql-cursor-caret {
+  position: absolute;
+  width: 2px;
+}
+
+.ql-cursors .ql-cursor .ql-cursor-name {
+  position: absolute;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 4px 4px 4px 0;
+  white-space: nowrap;
+  color: white !important;
+  transform: translateY(-100%) translateX(-1px);
+  margin-top: -2px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
 }
 
 /* Button styles */

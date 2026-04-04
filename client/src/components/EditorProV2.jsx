@@ -6,7 +6,8 @@ import {
   Keyboard, HelpCircle, X, ZoomIn, ZoomOut, Star, Wand2, PenLine, FileCheck,
   MoreHorizontal, Calendar, CheckSquare, User, MapPin, Figma, Plus, ChevronRight,
   Clock, MessageSquare, Settings, Bold, Italic, Underline, AlignLeft, AlignCenter,
-  AlignRight, List, ListOrdered, Link as LinkIcon, Image, Highlighter
+  AlignRight, List, ListOrdered, Link as LinkIcon, Image, Highlighter, Cloud,
+  CloudOff, FileUp, FileType
 } from 'lucide-react'
 import Quill from 'quill'
 import QuillCursors from 'quill-cursors'
@@ -16,6 +17,8 @@ import { WebsocketProvider } from 'y-websocket'
 import { format, formatDistanceToNow } from 'date-fns'
 import { API_URL, getWsUrl } from '../config/api'
 import { useAuth } from '../context/AuthContext'
+import jsPDF from 'jspdf'
+import html2canvas from 'html2canvas'
 
 // Register Quill modules
 Quill.register('modules/cursors', QuillCursors)
@@ -29,6 +32,22 @@ Quill.register(Font, true)
 const Size = Quill.import('attributors/style/size')
 Size.whitelist = ['10px', '12px', '14px', '16px', '18px', '20px', '24px', '28px', '32px', '36px', '48px', '72px']
 Quill.register(Size, true)
+
+// Unique colors for different collaborators
+const collaboratorColors = [
+  '#E91E63', '#9C27B0', '#673AB7', '#3F51B5', '#2196F3',
+  '#00BCD4', '#009688', '#4CAF50', '#8BC34A', '#FF9800',
+  '#FF5722', '#795548', '#607D8B', '#F44336', '#00ACC1'
+]
+
+// Get color for user based on their ID/name
+const getUserColor = (userId) => {
+  let hash = 0
+  for (let i = 0; i < userId.length; i++) {
+    hash = userId.charCodeAt(i) + ((hash << 5) - hash)
+  }
+  return collaboratorColors[Math.abs(hash) % collaboratorColors.length]
+}
 
 // AI Writing Prompts (Free - using local generation)
 const aiPrompts = {
@@ -66,6 +85,7 @@ export default function EditorProV2() {
   const providerRef = useRef(null)
   const ydocRef = useRef(null)
   const cursorsRef = useRef(null)
+  const autoSaveTimerRef = useRef(null)
   
   // Document state
   const [title, setTitle] = useState('Untitled Document')
@@ -73,6 +93,8 @@ export default function EditorProV2() {
   const [connected, setConnected] = useState(false)
   const [saving, setSaving] = useState(false)
   const [lastSaved, setLastSaved] = useState(null)
+  const [autoSaveEnabled, setAutoSaveEnabled] = useState(true)
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
   
   // UI state
   const [activeMenu, setActiveMenu] = useState(null)
@@ -88,8 +110,7 @@ export default function EditorProV2() {
   
   // AI Features
   const [showAI, setShowAI] = useState(false)
-  const [aiMode, setAiMode] = useState(null) // 'generate', 'help', 'meeting'
-  const [aiInput, setAiInput] = useState('')
+  const [aiMode, setAiMode] = useState(null)
   const [aiLoading, setAiLoading] = useState(false)
   
   // Share
@@ -103,14 +124,46 @@ export default function EditorProV2() {
   // Word count
   const [wordCount, setWordCount] = useState({ words: 0, chars: 0 })
 
+  // Auto-save function
+  const autoSave = useCallback(async () => {
+    if (!hasUnsavedChanges || !quillRef.current) return
+    
+    setSaving(true)
+    try {
+      const content = quillRef.current.root.innerHTML
+      await fetch(`${API_URL}/api/documents/${docId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          title,
+          content,
+          lastEditor: user?.name || 'Anonymous'
+        })
+      })
+      setLastSaved(new Date())
+      setHasUnsavedChanges(false)
+    } catch (error) {
+      console.error('Auto-save failed:', error)
+    }
+    setSaving(false)
+  }, [docId, title, hasUnsavedChanges, user])
+
   // Initialize editor
   useEffect(() => {
     if (!editorRef.current || quillRef.current) return
 
+    // Get user color based on their ID
+    const userColor = user?.color || getUserColor(user?.uid || user?.name || 'anonymous')
+
     const quill = new Quill(editorRef.current, {
       theme: 'snow',
       modules: {
-        cursors: true,
+        cursors: {
+          transformOnTextChange: true,
+          hideDelayMs: 5000,
+          hideSpeedMs: 0,
+          selectionChangeSource: null
+        },
         toolbar: '#toolbar',
         history: { userOnly: true }
       },
@@ -120,12 +173,17 @@ export default function EditorProV2() {
     quillRef.current = quill
     cursorsRef.current = quill.getModule('cursors')
 
-    // Word count
-    quill.on('text-change', () => {
+    // Word count & track changes
+    quill.on('text-change', (delta, oldDelta, source) => {
       const text = quill.getText()
       const words = text.trim() ? text.trim().split(/\s+/).length : 0
       const chars = text.length - 1
       setWordCount({ words, chars })
+      
+      // Mark as having unsaved changes
+      if (source === 'user') {
+        setHasUnsavedChanges(true)
+      }
     })
 
     // Yjs setup
@@ -139,39 +197,45 @@ export default function EditorProV2() {
     const ytext = ydoc.getText('quill')
     new QuillBinding(ytext, quill, provider.awareness)
 
-    // Set user info for awareness
+    // Set user info for awareness with unique color
     provider.awareness.setLocalStateField('user', {
       name: user?.name || 'Anonymous',
-      color: user?.color || '#4285f4'
+      color: userColor,
+      odataId: user?.uid || Math.random().toString(36).substr(2, 9)
     })
 
-    // Track collaborators
+    // Track collaborators and update cursors
     const updateCollaborators = () => {
       const states = provider.awareness.getStates()
       const users = []
+      
       states.forEach((state, clientId) => {
         if (state.user && clientId !== provider.awareness.clientID) {
-          users.push({ ...state.user, clientId })
-        }
-      })
-      setCollaborators(users)
-      
-      // Update cursors
-      if (cursorsRef.current) {
-        states.forEach((state, clientId) => {
-          if (state.user && clientId !== provider.awareness.clientID) {
+          const collaborator = {
+            ...state.user,
+            clientId,
+            color: state.user.color || getUserColor(state.user.name || clientId.toString())
+          }
+          users.push(collaborator)
+          
+          // Update or create cursor with user's color
+          if (cursorsRef.current) {
             try {
+              // Remove existing cursor first to update color
+              cursorsRef.current.removeCursor(clientId.toString())
               cursorsRef.current.createCursor(
                 clientId.toString(),
-                state.user.name,
-                state.user.color
+                state.user.name || 'Anonymous',
+                collaborator.color
               )
             } catch (e) {
-              // Cursor might already exist
+              // Cursor handling
             }
           }
-        })
-      }
+        }
+      })
+      
+      setCollaborators(users)
     }
 
     provider.awareness.on('change', updateCollaborators)
@@ -187,8 +251,26 @@ export default function EditorProV2() {
     return () => {
       provider.disconnect()
       ydoc.destroy()
+      if (autoSaveTimerRef.current) {
+        clearInterval(autoSaveTimerRef.current)
+      }
     }
   }, [docId])
+
+  // Auto-save timer
+  useEffect(() => {
+    if (autoSaveEnabled) {
+      autoSaveTimerRef.current = setInterval(() => {
+        autoSave()
+      }, 30000) // Auto-save every 30 seconds
+    }
+    
+    return () => {
+      if (autoSaveTimerRef.current) {
+        clearInterval(autoSaveTimerRef.current)
+      }
+    }
+  }, [autoSaveEnabled, autoSave])
 
   const fetchDocument = async () => {
     try {
@@ -293,10 +375,61 @@ export default function EditorProV2() {
     setAiMode(null)
   }
 
+  // Export as PDF
+  const exportAsPDF = async () => {
+    if (!quillRef.current) return
+    
+    setSaving(true)
+    try {
+      const editorContent = quillRef.current.root
+      const canvas = await html2canvas(editorContent, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#ffffff'
+      })
+      
+      const imgData = canvas.toDataURL('image/png')
+      const pdf = new jsPDF('p', 'mm', 'a4')
+      const pdfWidth = pdf.internal.pageSize.getWidth()
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width
+      
+      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight)
+      pdf.save(`${title}.pdf`)
+    } catch (error) {
+      console.error('PDF export failed:', error)
+      alert('Failed to export PDF. Please try again.')
+    }
+    setSaving(false)
+  }
+
+  // Manual save with content
+  const manualSave = async () => {
+    setSaving(true)
+    try {
+      const content = quillRef.current?.root.innerHTML || ''
+      await fetch(`${API_URL}/api/documents/${docId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          title,
+          content,
+          lastEditor: user?.name || 'Anonymous'
+        })
+      })
+      setLastSaved(new Date())
+      setHasUnsavedChanges(false)
+    } catch (error) {
+      console.error('Failed to save:', error)
+    }
+    setSaving(false)
+  }
+
   // Menus
   const menus = {
     file: [
       { label: 'New', shortcut: 'Ctrl+N', action: () => navigate('/dashboard') },
+      { label: 'Save', shortcut: 'Ctrl+S', action: manualSave },
+      { label: 'Download as PDF', icon: FileType, action: exportAsPDF },
       { label: 'Download as HTML', action: () => downloadAs('html') },
       { label: 'Download as Text', action: () => downloadAs('txt') },
       { label: 'Print', shortcut: 'Ctrl+P', action: () => window.print() }
@@ -373,16 +506,38 @@ export default function EditorProV2() {
               onBlur={() => updateTitle(title)}
               className="text-lg font-medium text-gray-800 bg-transparent border-none outline-none hover:bg-gray-100 focus:bg-gray-100 px-2 py-1 rounded"
             />
-            <div className="flex items-center gap-1 text-xs text-gray-500 px-2">
-              <Star className="w-3 h-3" />
-              <span>File</span>
-              <span>Edit</span>
-              <span>View</span>
-              <span>Insert</span>
-              <span>Format</span>
-              <span>Tools</span>
-              <span>Extensions</span>
-              <span>Help</span>
+            <div className="flex items-center gap-3 text-xs text-gray-500 px-2">
+              {/* Save Status Indicator */}
+              <div className="flex items-center gap-1">
+                {saving ? (
+                  <>
+                    <Loader2 className="w-3 h-3 animate-spin text-blue-500" />
+                    <span className="text-blue-500">Saving...</span>
+                  </>
+                ) : hasUnsavedChanges ? (
+                  <>
+                    <CloudOff className="w-3 h-3 text-orange-500" />
+                    <span className="text-orange-500">Unsaved changes</span>
+                  </>
+                ) : (
+                  <>
+                    <Cloud className="w-3 h-3 text-green-500" />
+                    <span className="text-green-500">
+                      Saved {lastSaved ? formatDistanceToNow(new Date(lastSaved), { addSuffix: true }) : ''}
+                    </span>
+                  </>
+                )}
+              </div>
+              <span className="text-gray-300">|</span>
+              <Star className="w-3 h-3 cursor-pointer hover:text-yellow-500" />
+              {/* Auto-save toggle */}
+              <button 
+                onClick={() => setAutoSaveEnabled(!autoSaveEnabled)}
+                className={`text-xs px-2 py-0.5 rounded ${autoSaveEnabled ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}
+                title={autoSaveEnabled ? 'Auto-save enabled' : 'Auto-save disabled'}
+              >
+                {autoSaveEnabled ? 'Auto-save: ON' : 'Auto-save: OFF'}
+              </button>
             </div>
           </div>
 
@@ -402,15 +557,17 @@ export default function EditorProV2() {
 
           {/* Collaborators */}
           {collaborators.length > 0 && (
-            <div className="flex -space-x-2 mr-2">
+            <div className="flex -space-x-2 mr-2 relative group">
               {collaborators.slice(0, 3).map((collab, i) => (
                 <div
                   key={i}
-                  className="w-8 h-8 rounded-full border-2 border-white flex items-center justify-center text-white text-sm font-medium"
+                  className="w-8 h-8 rounded-full border-2 border-white flex items-center justify-center text-white text-sm font-medium relative cursor-pointer transition-transform hover:scale-110 hover:z-10"
                   style={{ backgroundColor: collab.color }}
-                  title={collab.name}
+                  title={`${collab.name} (${connected ? 'Editing' : 'Offline'})`}
                 >
-                  {collab.name.charAt(0).toUpperCase()}
+                  {collab.name?.charAt(0).toUpperCase() || '?'}
+                  {/* Online indicator */}
+                  <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-green-500 border-2 border-white rounded-full" />
                 </div>
               ))}
               {collaborators.length > 3 && (
@@ -418,6 +575,22 @@ export default function EditorProV2() {
                   +{collaborators.length - 3}
                 </div>
               )}
+              {/* Tooltip showing all collaborators */}
+              <div className="absolute top-full mt-2 right-0 bg-white shadow-lg rounded-lg border p-3 hidden group-hover:block z-50 min-w-48">
+                <div className="text-xs text-gray-500 mb-2">Currently editing:</div>
+                {collaborators.map((collab, i) => (
+                  <div key={i} className="flex items-center gap-2 py-1">
+                    <div 
+                      className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-medium"
+                      style={{ backgroundColor: collab.color }}
+                    >
+                      {collab.name?.charAt(0).toUpperCase() || '?'}
+                    </div>
+                    <span className="text-sm text-gray-700">{collab.name}</span>
+                    <span className="text-xs text-green-500">● Active</span>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 
