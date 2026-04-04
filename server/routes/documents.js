@@ -170,6 +170,76 @@ router.get('/:docId/revisions', async (req, res) => {
   }
 });
 
+// GET /api/documents/:docId/versions - Alias for revisions (version history)
+router.get('/:docId/versions', async (req, res) => {
+  try {
+    if (!isMongoConnected()) {
+      // Return mock versions when DB not connected
+      return res.json([
+        { id: 1, timestamp: new Date(), editor: 'You', changes: 'Current version' }
+      ]);
+    }
+    
+    const doc = await Document.findOne({ docId: req.params.docId });
+    
+    if (!doc) {
+      // Return mock version for new documents
+      return res.json([
+        { id: 1, timestamp: new Date(), editor: 'You', changes: 'Current version' }
+      ]);
+    }
+    
+    const versions = (doc.revisions || []).map((rev, index) => ({
+      id: index + 1,
+      timestamp: rev.savedAt || doc.updatedAt,
+      editor: rev.savedBy || doc.owner || 'Anonymous',
+      changes: rev.title || 'Edit'
+    }));
+    
+    // Always include current version
+    versions.unshift({
+      id: 0,
+      timestamp: doc.updatedAt,
+      editor: doc.owner || 'Anonymous',
+      changes: 'Current version'
+    });
+    
+    res.json(versions);
+  } catch (error) {
+    console.error('Error fetching versions:', error);
+    // Return mock on error
+    res.json([
+      { id: 1, timestamp: new Date(), editor: 'You', changes: 'Current version' }
+    ]);
+  }
+});
+
+// PUT /api/documents/:docId - Update document (title, etc.)
+router.put('/:docId', async (req, res) => {
+  try {
+    const { title } = req.body;
+    
+    if (!isMongoConnected()) {
+      return res.json({ docId: req.params.docId, title, updatedAt: new Date() });
+    }
+    
+    const doc = await Document.findOneAndUpdate(
+      { docId: req.params.docId },
+      { $set: { title, updatedAt: new Date() } },
+      { new: true, upsert: true }
+    );
+    
+    res.json({
+      docId: doc.docId,
+      title: doc.title,
+      updatedAt: doc.updatedAt
+    });
+  } catch (error) {
+    console.error('Error updating document:', error);
+    res.json({ docId: req.params.docId, title: req.body.title, updatedAt: new Date() });
+  }
+});
+
 // POST /api/documents/:docId/revisions - Save a revision
 router.post('/:docId/revisions', async (req, res) => {
   try {
